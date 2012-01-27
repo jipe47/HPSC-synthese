@@ -1,0 +1,28 @@
+HPSC - Synthèse
+
+par Jean-Philippe Collette (jeanphilippe.collette [at] gmail [dot] com)
+-----------------------------
+
+Ce dépôt est consacré à une synthèse pour le cours de High Performance
+Scientific Computating, donné par messieurs Geuzaine et Collignon.
+
+La synthèse d'origine a été réalisée par
+
+	- Hervé de Sélys,
+	- Korian Edeline, et
+	- Jean-Philippe Collette.
+	
+Elle s'appuie sur nos prises de notes, ainsi que sur deux livres de référence :
+
+	- "Introduction to High-Performance Scientific Computing", par Victor
+	  Eijkhout, et
+	- "Parallel Scientific Computing in C++ and MPI", par George Em Karniadakis
+	  et Robert M. Kirby II.
+
+Le but de ce dépôt est de faciliter les petites corrections, les améliorations,
+etc au fil des années. De ce fait, merci de
+
+	- vérifier ce que vous envoyez,
+	- relire vos envois (orthographe, grammaire),
+	- fournir des descriptions un minimum précises sur ce qui est modifié, et
+	- participer de manière constructive et respectueuse du travail des autres.
