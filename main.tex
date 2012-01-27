@@ -1,0 +1,83 @@
+\documentclass[10pt,a4paper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage[french]{babel}
+\usepackage{amssymb}
+\usepackage[cm]{fullpage}
+\usepackage{graphicx}
+
+\usepackage{listings}
+\usepackage{algorithmic}
+\usepackage{algorithm}
+
+\usepackage{verbatim}
+\usepackage{framed}
+\usepackage{color}
+\usepackage{hyperref}
+
+\hypersetup{
+backref=true,
+pagebackref=true,
+hyperindex=true, 
+colorlinks=true, 
+breaklinks=true, 
+urlcolor= blue, 
+linkcolor= blue, 
+bookmarks=true, 
+bookmarksopen=true, 
+pdftitle={HPSC_synthese}, 
+pdfauthor={K. Edeline J. Collette H. de Sélys}, 
+pdfsubject={HPSC}
+}
+
+\newtheorem{theorem}{Théorème}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{corollary}[theorem]{Corollary}
+
+
+\newenvironment{proof}[1][Preuve]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\qed\end{trivlist}}
+\newenvironment{definition}[1][Définition]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{example}[1][Exemple]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+\newenvironment{remark}[1][Remark]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}]}{\end{trivlist}}
+
+\newcommand{\n}{~\\}
+\newcommand{\ens}[1]{\lbrace #1 \rbrace}
+\newcommand{\bigo}{\mathcal{O}}
+
+\newcommand{\dessin}[1]{\begin{center}\includegraphics[scale=0.65]{images/#1.png}\end{center}}
+\newcommand{\dessinS}[2]{\begin{center}\includegraphics[scale=#2]{images/#1.png}\end{center}}
+
+\lstset{
+language=C,
+basicstyle=\footnotesize\ttfamily,
+tabsize=2,
+breaklines=true,
+breakatwhitespace=false,
+frame=single
+}
+
+% Scale des pdfs : 125%
+
+\title{Synthèse HPSC}
+\author{Korian Edeline \and Hervé de Sélys \and Jean-Philippe Collette}
+\makeindex
+\begin{document}
+	\maketitle
+	\tableofcontents
+	
+	\include{chapter1}
+	\include{chapter2}
+	\include{chapter3}
+	\include{chapter4}
+	\include{chapter5}
+	%\include{chapter6}
+	
+	\include{annexe}
+			
+\end{document}

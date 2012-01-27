@@ -1,0 +1,816 @@
+\chapter{Algèbre linéaire numérique}
+
+\section{Élimination d'inconnues}
+
+	\subsection{Règle de Cramer}
+	La solution d'un système linéaire peut être calculée avec une formule explicite : la règle de Cramer. Soient une matrice $A$, un vecteur $b$ et un vecteur $x$ qui satisfait $Ax = b$. Si $\vert A \vert$ est le déterminant, la règle dit que
+
+	$$x_i = \frac{\vert A_i \vert }{\vert A \vert}$$
+
+	avec $A_i$ la matrice obtenue en remplaçant la $i$ème colonne de $A$ par $b$ :
+	
+	$$A_i = \begin{bmatrix}
+a_{11} & a_{12} & \dots & a_{1 i - 1} & b_1 & a_{1 i + 1} & \dots & a_{1 n} \\ 
+a_{21} &   & \dots &   & b_2 &   & \dots &   \\ 
+\vdots &   & \dots &   & \vdots &   & \dots &   \\ 
+a_{n1} &   & \dots &   & b_n &   & \dots &  
+\end{bmatrix} $$
+
+	Le déterminant d'une matrice $M$ est défini ainsi :
+
+	$$\vert M \vert = \sum_{i} (-1)^i M_{1 i} \vert M^{[1, i]} \vert$$
+
+	et avec
+
+	\begin{itemize}
+		\item $M^{[1, i]}$ la matrice obtenue en supprimant la ligne $1$ et la colonne $i$ de $M$,
+		\item $M_{ij}$ l'élément à la $i$ème ligne et à la $j$ème colonne.
+	\end{itemize}
+
+	Pour une matrice de taille $n$, calculer son déterminant signifie calculer $n$ fois un déterminant de taille $n - 1$, qui chacun nécessiteront le calcul de $n - 1$ déterminants de taille $n - 2$, etc.
+
+	Le nombre d'opérations requises est factoriel par rapport à la taille de la matrice.
+
+
+	\subsection{Élimination de Gauss}
+	
+	Pour chaque ligne de la matrice $A \vert b$ (concaténation de $A$ et $b$), le premier élément est désigné comme \textit{pivot}. S'il est nul, on échange les lignes de la matrice (\textit{pivoting}) de façon à ce qu'il ne soit pas nul.
+	
+	Pour un pivot $p_i$ en $(i, j)$, pour toutes les autres lignes, on va annuler tous les termes dans la colonne $j$ par une combinaison linéaire de la ligne $i$.
+	
+	La dernière ligne donnera une solution pour l'inconnue de la dernière ligne $x_{i}$. Il suffit ensuite de l'injecter dans les lignes précédentes, pour finalement trouver les valeurs de toutes les inconnues.
+	
+	Inconvénients de la méthode :
+	
+	\begin{itemize}
+		\item  des pivots peuvent être difficilement trouvables ; il n'y a pas de moyen de prédire la présence de pivots nuls en regardant le système d'équations.
+		
+		\item en général, les éléments de la matrice sont réels, et à cause de la représentation en virgule flottante et des erreurs d'arrondis, certains peuvent devenir nuls.
+		
+		\item la diagonale est généralement non nulle.
+	\end{itemize}
+	
+	La méthode du pivot est quand même désirable d'un point de vue de stabilité numérique.
+	
+		\subsubsection{Algorithme}
+		
+		Soit la représentation
+		
+		$$\begin{bmatrix}
+a_{11} & a_{12} & \dots & a_{1N} \\ 
+a_{21} & \ddots &   &  \\ 
+\vdots &  &  &  \\ 
+\vdots &  &  & a_{NN}
+\end{bmatrix} \begin{bmatrix}
+x_1 \\ 
+x_2 \\ 
+\vdots \\ 
+x_N
+\end{bmatrix} = \begin{bmatrix}
+b_1 \\ 
+b_2 \\ 
+\vdots \\ 
+b_N
+\end{bmatrix}  $$
+		
+\begin{algorithm}
+\caption{Elimination de Gauss}
+\begin{algorithmic}
+\FOR[Parcours des colonnes]{$k = 1, \dots , N - 1$}
+	\FOR[Parcours des lignes]{$i = k + 1, \dots , N$}
+		\STATE $l_{ik} = \frac{a_{ik}}{a_{kk}}$
+		
+		\FOR[Mise à jour de la ligne]{$j = k + 1, \dots , N$}
+			\STATE $a_{ij} = a_{ij} - l_{ik} a_{kj}$
+		\ENDFOR
+		
+		\STATE $b_i = b_i - l_{ik} b_k$
+	\ENDFOR
+\ENDFOR
+
+\STATE $x_N = \frac{b_N}{a_{NN}}$ \COMMENT{Substitution}
+\FOR{$k = N - 1, \dots , 1$}
+	\STATE $x_k = b_k$
+	
+	\FOR{$i = N, \dots , k + 1$}
+		\STATE $x_k = x_k - a_{ki} x_i$
+	\ENDFOR
+	
+	\STATE $x_k = \frac{x_k}{a_{kk}}$
+
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+	\subsubsection{Parallélisation de l'algorithme}
+	
+	On pourrait assigner des ranges de lignes à chaque processeur.
+	
+	\dessin{chapter5/12}
+	
+	Le problème est que les premiers CPU auront de moins en moins de travail à effectuer, car à chaque itération il y a une ligne en moins à traiter. Le même phénomène se produira si on répartit par colonne.
+	
+	On peut s'en sortir en distribuant les lignes aux CPUs.
+	
+	\dessin{chapter5/13}
+	
+	\subsubsection{Cas des matrices creuses}
+	
+	On définit le \textit{masque} d'une matrice comme l'emplacement des valeurs (non) nulles.
+	
+	En appliquant l'algorithme sur une matrice creuse et remplie de manière aléatoire, la décomposition LU donnera des matrices presque pleines (ce qui augmente la mémoire nécessaire).
+	
+	\dessin{chapter5/11}	
+
+	Une solution est de rassembler ces valeurs sur la diagonale. Ainsi, la décomposition LU gardera le même masque.
+	
+	\dessin{chapter5/10}
+	
+
+\section{Algèbre linéaire avec l'arithmétique informatique}
+
+	\subsection{Contrôle de l'arrondi durant l'élimination}
+	
+	Lorqu'un élément nul apparaît sur la diagonale durant l'élimination, on échange des lignes. S'il est très proche de 0, on risque d'avoir des problèmes.
+	
+	[Cas d'un $\epsilon$ petit pour LU, voir p142 pour l'élimination de Gauss]
+	
+	Par exemple, si $\epsilon$ est considéré comme très petit,
+	
+	$$\begin{pmatrix}
+\epsilon & 1 \\ 
+1 & 1
+\end{pmatrix} x = \begin{pmatrix}
+1 + \epsilon \\ 
+2
+\end{pmatrix}  $$
+
+	On va soustraire la seconde ligne par $\frac{1}{\epsilon}$, qui est extrêmement grand, et qui va entrainer l'erreur.
+	
+	On aura ainsi comme décomposition LU :
+	
+	$$L = \begin{pmatrix}
+1 & 0 \\ 
+\frac{1}{\epsilon} & 1
+\end{pmatrix} \text{, } U = \begin{pmatrix}
+\epsilon & 1 \\ 
+0 & 1 - \frac{1}{\epsilon}.1 \approx - \frac{1}{\epsilon}
+\end{pmatrix} $$
+
+$$LU = \begin{pmatrix}
+\epsilon & 1 \\ 
+1 & 0
+\end{pmatrix} $$
+
+	La solution du système passe de $(1, 1)^T$ à $(1, 2)^T$.
+
+	Pour remédier à ce problème, il suffit d'appliquer une matrice $P$ à $A$ pour permuter les lignes :
+
+$$PA = \begin{pmatrix}
+1 & 0 \\ 
+0 & 1
+\end{pmatrix} A = \begin{pmatrix}
+1 & 1 \\ 
+\epsilon & 1
+\end{pmatrix} $$
+
+	La règle générale est de \textit{toujours effectuer des échanges de lignes pour avoir le plus grand élément restant à la position du pivot}.
+
+	A noter qu'échanger des lignes est appelé un \textit{pivotage partiel} : on peut également échanger les colonnes, ce qui donne un \textit{pivotage complet} (\textit{full pivoting}).
+	
+	\subsection{Influence des arrondis dans le calcul de valeurs propres}
+	
+	Soit une matrice $A$ avec $\epsilon_{\text{machine}} < \vert \epsilon \vert < \sqrt{\epsilon_{\text{machine}}}$.
+	
+	$$A = \begin{pmatrix}
+1 & \epsilon \\ 
+\epsilon & 1
+\end{pmatrix} $$
+
+	Les valeurs propres sont $1 + \epsilon$ et $1 - \epsilon$. Si on calcule le polynôme caractéristique, on a
+	
+	$$\begin{vmatrix}
+1 - \lambda & \epsilon \\ 
+\epsilon & 1 - \lambda
+\end{vmatrix} = \lambda^2 - 2\lambda + (1 - \epsilon^2) = \lambda^2 - 2\lambda + 1 $$
+
+	Le résultat est que les deux valeurs propres seront $1$ et $1$. C'est l'algorithme qui cause l'erreur, car les valeurs propres sont exprimées en arithmétique finie.
+	
+	Utiliser le polynôme caractéristique n'est donc pas la meilleur façon de calculer les valeurs propres, même si ça fonctionne bien pour des matrices symétriques positives définies.
+	
+	Pour les matrices triangulaires, les valeurs propres sont les éléments sur la diagonale. Si on insère une perturbation (de l'ordre de $10^{-6}$), on retrouvera une perturbation beaucoup plus grande dans les valeurs propres.
+	
+	De plus, les valeurs propres auront des composantes imaginaires, ce que des valeurs propres exactes n'ont pas.
+		
+\section{Factorisation LU}
+
+La factorisation LU consiste à trouver, à partir d'une matrice $A$, une matrice $L$ triangulaire inférieure et une matrice $U$ triangulaire supérieure telles que $A = LU$.
+
+La matrice $L$ contient les coefficients utilisés lors de l'élimination de Gauss. La matrice $U$ est celle obtenue après la descente.
+
+
+	\subsection{Algorithme}
+	
+\begin{algorithm}
+\caption{Factorisation LU}
+\begin{algorithmic}
+\FOR[Eliminer les valeurs dans la colonne $k$]{$k = 1, \dots , n - 1$}
+	\FOR{$i = k + 1, \dots , n$}
+		\STATE $a_{ik} \leftarrow \frac{a_{i k}}{a_{kk}}$ \COMMENT{Multiplicateur pour la ligne $i$}
+		
+		\FOR[Mise à jour de la ligne $i$]{$j = k + 1, \dots , n$}
+			\STATE $a_{ij} \leftarrow a_{ij} - a_{i k} * a_{k j}$
+		\ENDFOR
+	\ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+	
+	\subsection{Factorisation de Cholesky}
+
+	La factorisation LU d'une matrice symétrique ne donne pas un $L$ et un $U$ telles que l'une est la transposée de l'autre. Ainsi, $L$ a des $1$ sur sa diagonale, tandis que $U$ a les pivots.
+	
+	Il est possible de factoriser une matrice symétrique $A$ de façon à ce que $A = L L^t$. L'avantage est que la factorisation prend le même espace que la matrice originale ($\frac{n (n + 1)}{2}$ éléments).
+	
+	[suite p146]
+	
+	\subsection{Unicité de la factorisation}
+	
+	Vu que l'algorithme est déterministe, on obtiendra toujours la même décomposition. Par contre, en utilisant d'autres algorithmes, on peut obtenir des décompositions différentes.
+	
+	[suite p147]
+	
+	\subsection{Pivotage}
+	
+	[pages 147, 148 et 149]
+	
+	\subsection{Résolution du système}
+	
+	On a une factorisation de $A$, on va l'utiliser en résolvant le système $LUx = b$.
+	
+	Posons $y = Ux$. On a alors $Ly = b$.
+	
+	On a, pour $Ly = b$,
+	
+	%Todo : png2latex
+	\dessin{chapter5/1}
+	
+	On peut utiliser la formule suivante pour calculer les $y_i$ :
+	
+	$$y_i = b_i - \sum_{j < i}l_{i, j} y_j$$
+	
+	Les $y_i$ doivent être calculés en incrémentant la valeur de $i$.
+	
+	Pour $Ux = y$, on a
+	
+	\dessin{chapter5/2}
+	
+	On a que $x_n = u^{-1}_{nn}y_n$. Et de manière plus générale, on a
+	
+	$$x_i = u^{-1}_{ii}(y_i - \sum_{j > i} u_{ij}y_j)$$
+	
+	Les $x_i$ doivent être calculés en décrémentant $i$.
+	
+	
+	\subsection{Complexité}
+	
+	Pour la résolution d'un système linéaire de taille $n \times n$, on utilise $n^2$ multiplications et à peu près autant d'additions (même complexité qu'un produit matrice-vecteur).
+	
+	Pour la décomposition LU, à la $k$ème étape, il faut calculer les $n - k$ multiplicateurs (ce qui implique une division), et mettre à jour les lignes, ce qui nécessite $(n - k)^2$ additions et multiplications. On a alors que la factorisation $LU$ prend $\sum_{k = 1}^{n - 1}2(n-k)^2$ opérations, ou à l'envers
+	
+	$$\sharp\text{ops } = \sum_{k = 1}^{n - 1} 2k^2$$
+	
+	En approximant avec une intégrale, on a $\frac{2}{3}n^3$. La complexité de la factorisation LU domine celle de la résolution de l'équation.
+	
+	\subsection{Précision}
+	
+	On va tenter de voir l'effet cumulatif des erreurs d'arrondis en supposant que, pour un système $Ax = b$, on obtient une solution numérique $x + \Delta x$ qui est la solution exacte d'un système linéaire légèrement différent : $A (x + \Delta x) = (b + \Delta b)$.
+	
+	On a
+		
+	\begin{eqnarray}
+	& A(x + \Delta x) = b + \Delta b \\
+	\Leftrightarrow & Ax + A \Delta x = b + \Delta b \\
+	\Leftrightarrow & A\Delta x = \Delta b \\
+	\Leftrightarrow & \Delta x = A^{-1}\Delta b
+	\end{eqnarray}
+	
+	\begin{eqnarray}
+	\Vert \Delta x  \Vert & = & \Vert A^{-1} \Delta b \Vert \\
+	&  \leq & \Vert A^{-1}\Vert . \Vert \Delta b \Vert 
+	\end{eqnarray}
+	
+	On obtient la borne
+	
+	$$\frac{\Vert \Delta x \Vert}{\Vert x \Vert} \leq \frac{\Vert A^{-1} \Vert . \Vert \Delta b \Vert}{\Vert x \Vert}$$
+	
+	Ou encore
+	
+	$$\frac{\Vert \Delta x \Vert}{\Vert x \Vert} \leq \Vert A^{-1} \Vert . \Vert A \Vert \frac{\Vert \Delta b \Vert}{\Vert b \Vert}$$
+	
+	car
+	
+	\begin{eqnarray}
+	& \Vert Ax \Vert = \Vert b \Vert \\
+	\Leftrightarrow & \Vert b \Vert \leq \Vert A \Vert . \Vert x \Vert \\
+	 \Leftrightarrow & \frac{1}{\Vert x \Vert} \leq \frac{\Vert A \Vert }{\Vert b \Vert}
+	\end{eqnarray}
+	
+	Le nombre de conditionnement de la matrice $A$ en norme $p$ est $\kappa_p$ et vaut $\Vert A^{-1} \Vert_p . \Vert A \Vert_p$.
+	
+	Vu que $\kappa$ est fixe, la variation de la solution est bornée par l'erreur de donnée.
+	
+	Plus le nombre de conditionnement est grand, plus un petit changement impactera la solution. Si $\kappa$ est grand, on dit que le système est mal conditionné.
+	
+	Pour rappel
+	
+	$$\Vert x \Vert_p := (\sum_n \vert x_i \vert)^{\frac{1}{p}}$$
+	
+	$$\Vert A \Vert_p := max_{\Vert X \Vert_p = 1} \Vert A X \Vert_p$$
+	
+	\subsection{Algorithmes par bloc}
+	
+	Les matrices ont parfois des structures de blocs, et certains systèmes algébriques linéaires peuvent être exprimés sous cette forme.
+	
+	[Exemple du produit matrice-vecteur et de la décomposition LU : p152]
+	
+	Les algorithmes basés sur des blocs sont intéressants car
+	
+	\begin{itemize}
+		\item sur les processeurs eux-mêmes, ils permettent d'utiliser pleinement la cache, et
+		\item dans des architectures avec de la mémoire partagée, ils peuvent être utilisés pour paralléliser les tâches.
+	\end{itemize}
+	
+\section{Matrices creuses}
+
+	\subsection{Stockage de matrices creuses}
+	
+	Il est difficile de définir ce que sont les matrices creuses. D'un point de vue opérationnel, on peut les définir comme les matrices qui contiennent suffisamment de zéros pour qu'un stockage spécialisé soit possible (et utile).
+	
+		\subsubsection{Stockage diagonal}
+		
+		On considère les matrices qui ont des éléments non nuls sur les diagonales, de sorte qu'elles forment une bande.
+		
+		L'idée est de stocker la diagonale consécutivement dans la mémoire. Soit une matrice diagonale de dimension $n$ avec une bande de largeur $p$. On va alors utiliser un tableau de dimension $n \times p$
+		
+		\dessin{chapter5/15}
+		
+		Par exemple, avec $p = 3$. Les étoiles désignent les éléments non définis dans la matrice, un surplus de mémoire qui permet de moins se compliquer la vie.
+		
+		\dessin{chapter5/16}
+		
+		On pourrait cependant avoir du gaspillage si les diagonales contiennent des éléments nuls. On peut alors stocker seulement les diagonales non nulles ; pour une matrice de dimension $n$ avec $p$ diagonales, on aura toujours un tableau $n \times p$.
+		
+		\dessin{chapter5/17}
+		
+		Il faudra y ajouter un tableau d'indices, pour pouvoir localiser chaque diagonale non nulle.
+		
+		Les cas ci-dessus ne concernent que des matrices qui comptent autant de diagonales non nulles au-dessus et en-dessous de la diagonale principale, mais en général ce n'est pas le cas. On introduit alors les concepts de \textit{halfbandwidth} gauche et droite :
+		
+		\begin{itemize}
+			\item left halfbandwidth : si $A$ a un left halfbandwidth de $p$, alors $A_{ij} = 0$ pour $i > j + p$ ;
+			\item right halfbandwidth : si $A$ a un right halfbandwidth de $p$, alors $A_{ij} = 0$ pour $j > i + 2p$.
+		\end{itemize}
+		
+		\subsubsection{Opérations sur un stockage diagonal}
+		
+		[p155]
+		
+		\subsubsection{Compression de lignes}
+		
+		Les matrices qui n'ont pas une bande ne peuvent pas être stockées efficacement avec un stockage diagonal. On a alors le stockage plus général CRS (Compressed Row Storage), où on compresse les lignes en éliminant les zéros.
+		\dessin{chapter5/19}
+		
+		Vu qu'on élimine les zéros, il est nécessaire de stocker les indices où commencent les lignes.
+		
+		\dessin{chapter5/18}
+		
+		Une variante est le CCS (Compressed Column Storage), où on compresse les colonnes.
+		
+		Le stockage le plus flexible est le COO (Coordinate storage), où une matrice est stockée sous forme de triplets $(i, j, a_{i, j})$.
+		
+		\subsubsection{Algorithmes sur un stockage de lignes compressées}
+		
+		[pages 156 et 157]
+		
+		\subsubsection{Les matrices creuses et la théorie des graphes}
+		
+		[Page 158]
+		
+		\subsubsection{Factorisation LU sur des matrices creuses}
+		
+		Lorsque l'on effectue la factorisation LU sur des matrices diagonales, le masque dans $L + U$ est le même. Dès lors, la factorisation prend le même espace mémoire que la matrice originale.
+		
+		Malheureusement, cela ne concerne que les matrices diagonales. Avec les matrices creuses en général, il y a un phénomène de fill-in : des éléments en $(i, j)$ qui sont nuls ne le seront pas nécessairement aux mêmes coordonnées dans la matrice $L + U$.
+		
+		Du coup, la factorisation LU prendra plus d'espace mémoire que la matrice A originale. Néanmoins, elle nécessitera moins d'espace que le stockage de la matrice complète.
+		
+		On peut cependant montrer qu'il y a une borne sur la complexité en espace d'une factorisation. On a les résultats suivants, pour des matrices avec bandes :
+		
+		\begin{itemize}
+			\item pour la factorisation sans pivotage d'une matrice avec une bande de taille $p$, un tableau de $N \times p$ suffit.
+			\item la factorisation avec un pivotage partiel d'une matrice avec un left bandwidth $p$ et un right bandwidth $q$ peut être stockée dans un tableau $N \times (p + 2q + 1)$.
+		\end{itemize}
+		
+		Le stockage d'une factorisation LU peut être plus grand que celui requis pour stocker la matrice originale ; la différence n'est pas un facteur constant, mais dépend de la taille de la matrice.
+		
+		On peut prouver que l'inverse de matrices creuses peut être dense, et donc nécessiter plus d'espace de stockage.
+		
+		C'est pour cette raison que résoudre un système du type $Ax = b$ ne se fait pas en calculant $A^{-1}$ et en calculant $x = A^{-1} b$ : l'espace de stockage nécessaire est plus grand (en plus de la stabilité numérique qui n'est pas assurée). C'est pour cela qu'on préfère utiliser des méthodes itératives.
+		
+		La factorisation d'une matrice dense $n \times n$ prend $\bigo (n^3)$. Pour une matrice creuse de halfbandwidth $p$, dont la bande est dense, le premier élément $a_{11}$ est utilisé pour annuler $p$ éléments dans la première colonne, et la première ligne est ajoutée aux autres, ce qui implique $p$ multiplications et additions. Le nombre d'opérations est de l'ordre de
+		
+		$$\sum_{i = 1}^n p^2 = p^2n$$
+		
+		[Algorithme pour trouver le nombre d'éléments non nuls dans L + U : pages 160 et 161]
+		
+		\subsubsection{Théorie des graphes sur une factorisation LU creuse}
+		
+		[Page 161]
+		
+		\subsubsection{Réduction du fill-in}
+		
+		[Plus de détails p162]
+		
+		Il est possible de réduire le phénomène de fill-in en appliquant des permutations au système linéaire. Néanmoins, la factorisation LU nécessitera quand même beaucoup plus d'espace mémoire.
+		
+		
+
+\section{Méthodes itératives}
+
+L'élimination de Gauss et l'utilisation de la factorisation LU sont simples, mais peuvent engendrer des problèmes pour des problèmes qui viennent d'équations aux dérivées partielles discrétisées. Avec les méthodes itératives, la solution du système est trouvée après une séquence d'itérations.
+
+De plus, les méthodes itératives sont généralement plus efficaces : $\bigo(n^2)$ pour une itération (jusqu'à $\bigo(n)$ pour une matrice creuse) contre $\bigo(n^3)$ pour la factorisation LU.
+
+
+	\subsection{Steepest Descent}	
+	
+	Soit le système $Ax = b$ à résoudre. On définit $P(x)$ comme
+	
+	$$P(x) = \frac{1}{2}x^T A x -x^Tb$$
+	
+	Si $x = \begin{pmatrix}
+x_1 \\ 
+x_2
+\end{pmatrix}$, on a alors le gradient
+	
+	$$\nabla P(x) = \begin{pmatrix}
+\frac{\vartheta P(x)}{x_1} \\ 
+\frac{\vartheta P(x)}{x_2}
+\end{pmatrix} = \frac{1}{2} Ax + \frac{1}{2} A^Tx - b$$
+
+	Si $A$ est symétrique, $A = A^T$, on a alors
+	
+	$$\nabla P(x) = Ax - b$$
+	
+	Résoudre le système revient à annuler le gradient, donc à minimiser $P(x)$. Dans le cas d'une matrice $A$ définie positive, $P(x)$ sera une parabole, dont il faut trouver le minimum.
+	
+		
+	\dessin{chapter5/3}
+	
+	On démarre à un point arbitraire, on calcule le gradient et on suit la direction. On le suit jusqu'à un certain point, puis on recommence jusqu'à approcher le minimum.
+
+	
+	\subsubsection{Algorithme}
+	
+	On commence à un $x_0$ choisi aléatoirement, et on va suivre le gradient opposé. On a donc, pour la première étape 
+	
+	$$x_1 = x_0 + \underbrace{- \nabla P(x_0)}_{r_0} \alpha$$
+	
+	On définit $r_i$ le résiduel à l'étape $i$. Pour la solution exacte, on a $r = 0$. On le définit ainsi :
+		
+	\begin{eqnarray}
+	- \Delta P(x) & = & -Ax_0 + b \\
+	 & \triangleq & r_0 = b - Ax_0
+	\end{eqnarray}
+	
+	Pour le calcul de $\alpha$, il faut que
+	
+	$$\frac{dP(x_1)}{d\alpha} = 0 = \underbrace{\nabla P(x_1)^T}_{-r_1^T}  \underbrace{\frac{d x_1(\alpha )}{d \alpha }}_{r_0}$$
+	
+	\begin{eqnarray}
+	\Rightarrow 	& r_1^Tr_0 		 =  0 \\
+	\Leftrightarrow & (b - Ax_1)^Tr_0  =  0 \\
+	\Leftrightarrow & (b - A(x_0 + r_0 \alpha))^Tr_0  =  0 \\
+	\Leftrightarrow & (b - Ax_0)^Tr_0 - \alpha(Ar_0)^Tr_0  =  0 \\
+	\Leftrightarrow & r_0^Tr_0  =  \alpha(Ar_0)^Tr_0 \\
+	\Leftrightarrow & \alpha  =  \frac{r_0^Tr_0}{r_0^TA^Tr_0} = \frac{r_0^T r_0}{r_0^T A r_0}
+	\end{eqnarray}
+
+	On a l'algorithme suivant.
+	
+\begin{algorithm}
+\caption{Steepest Descent}
+\begin{algorithmic}
+
+\STATE choisir $x_0$
+
+\FOR{$k = 0, 1, \dots$} 
+
+	\STATE $r_k = b - A x_k$
+	
+	\IF{$\Vert r_k \Vert < $ seuil}
+		\STATE break
+	\ENDIF
+	
+	\STATE $\alpha_k = \frac{r_k^T r_k}{r_k^T A r_k}$
+	
+	\STATE $x_{k + 1} = x_k + \alpha_k r_k$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}	
+
+
+	C'est un algorithme simple, qui se parallélise bien (à base de produits vecteur-matrice, $\bigo(n^2)$). Il est compétitif s'il y a moins de $n$ itérations à effectuer.
+	
+	Cependant, il y a toujours de nombreuses itérations à effectuer, ce qui explique qu'il est généralement ignoré.
+	
+	\subsection{Gradient conjugué}
+	
+	L'idée est de prendre une direction autre que le steepest descent, pour converger plus vite.
+	
+	\begin{definition}
+	
+	Des vecteurs $p, q \in \mathbb{R}^n$ sont $A$-orthogonaux si $p^TAq = 0$. Ils sont orthogonaux si $p^Tq = 0$.
+	\end{definition}
+	
+	En suivant ces vecteurs (au nombre égal au nombre de dimensions), on convergera plus rapidement. Supposons que l'on connaisse une séquence $\ens{p_k}$ de $n$ vecteurs mutuellement A-orthogonaux.
+	
+	La solution sera, avec $\gamma_k$ des coefficients :
+	
+	$$x = \sum_{k = 0}^{n - 1} \gamma_k p_k$$
+	
+	Le système devient alors
+	
+%	$$Ax = b \Leftrightarrow A(\gamma_0 p_0 + \dots + \gamma_{n - 1}p_{n - 1}) = b$$
+%	$$\Leftrightarrow p_k^T A (\gamma_0 p_0 + \dots + \gamma_{n - 1} p_{n - 1}) = p_k^Tb, \: k \neq 0$$
+%	$$p_k^TA\gamma_kp_k = p_k^Tb$$
+	
+	\begin{eqnarray}
+	& Ax = b \\
+	\Leftrightarrow & A(\gamma_0 p_0 + \dots + \gamma_{n - 1}p_{n - 1}) = b \\
+	\Leftrightarrow & p_k^T A (\gamma_0 p_0 + \dots + \gamma_{n - 1} p_{n - 1}) = p_k^Tb, \: k \neq 0 \\
+	\Leftrightarrow & p_k^TA\gamma_kp_k = p_k^Tb
+	\end{eqnarray}
+	
+	par définition des $p_k$. On a alors comme solution exacte
+	
+	$$\gamma_k = \frac{p_k^Tb}{p_k^TAp_k}$$
+	
+	L'algorithme itératif aura donc la forme 
+	
+	$$x_{k + 1} = x_k + \alpha_k p_k$$
+	
+	$\alpha_k$ doit être trouvé en spécifiant $\frac{\vartheta P}{\vartheta \alpha_k} = 0$, autrement dit en minimisant la forme quadratique. Il faut donc que 
+	
+	$$\alpha_k = \frac{p_k^Tr_k}{p_k^TAp_k}$$
+	
+		\subsubsection{Convergence}
+		
+		Est-on assuré de la convergence après $n$ itérations ? Supposons que $x_0$ est le choix initial.
+		
+		La solution itérative sera
+		
+		$$x_k - x_0 = \sum_{i = 0}^{k - 1}\alpha_i p_i$$
+		
+		$$\alpha_i = \frac{p_i^Tr_i}{p_i^TAp_i}$$
+		
+		La solution exacte sera
+		
+		$$x - x_0 = \sum_{i = 0}^{n - 1} \gamma_i^*p_i$$
+		
+		$$\gamma_i^* = \frac{p_i^Tb}{p_i^TAp_i} =  \frac{p_i^TA(x - x_0)}{p_i^TAp_i}$$
+		
+		Le $A(x - x_0)$ vient du fait que le $\gamma^*$ intervient dans la solution exacte de $A(x - x_0)$, or $A(x - x_0) = b$.
+		
+		On peut introduire un terme nul :
+		
+		$$\gamma_i^* = \frac{p_i^TA(x - x_0)}{p_i^TAp_i} - \frac{p_i^TA(x_i - x_0)}{p_i^TAp_i}$$
+		
+		Le second terme est nul, car $x_i$ peut être décomposé en $x_{i - 1}, \dots , x_0$, avec des termes $p_{i - 1}, \dots , p_0$. Ceux-ci sont $A$-orthogonaux, donc lorsqu'ils sont multipliés par $p_i^T$ cela donnera 0.
+		
+		En mettant en évidence $\frac{p_1^TA}{p_i^TAp_i}$, on a au numérateur
+		
+		$$A(x - x_0 - x_i + x_0) = A(x - x_1) = Ax - Ax_i = b - Ax_i = r_i$$
+		
+		On a alors
+		
+		$$\gamma_i^* = \frac{p^TA(x - x_i)}{p_i^TAp_i} = \frac{p_i^Tr_i}{p_i^TAp_i} = \alpha_i$$
+		
+		On converge donc en $n$ itérations. Dans le pire des cas, on est aussi bon qu'avec une méthode directe.
+		
+		Pour la première direction, on pourrait prendre le gradient ($p_0 = r_0$), ou bien prendre un choix aléatoire. L'avantage avec l'utilisation du gradient est qu'on converge un minimum. Le but est maintenant de calculer les autres directions.
+		
+		\subsubsection{Calcul des directions $p_i$}
+		
+		Initialement, on a $p_0 = r_0$. On définit ensuite $p_k$ :
+		
+		$$p_{k + 1} = r_{k + 1} + \beta_k p_k$$
+		
+		On utilise le gradient (donc on descend), avec une correction pour converger plus vite.
+		
+		On a que
+		
+		$$0 = p_k^TAp_{k + 1} = p_k^TA(r_{k + 1} + \beta_kp_k)$$
+		
+		$$\Leftrightarrow \beta_k = \frac{-p_k^TAr_{k + 1}}{p_k^TAp_k}$$
+		
+		\subsubsection{Algorithme}
+
+\begin{algorithm}
+\caption{Gradient conjugué}
+\begin{algorithmic}
+\STATE choisir $x_0$
+\STATE choisir $p_0 = r_0 = b - Ax_0$
+
+\FOR{$k = 0, 1, \dots$}
+
+	\STATE $\alpha_k = \frac{p_k^Tr_k}{p_k^TAp_k}$
+		
+	\STATE $x_{k + 1} = x_k + \alpha_kp_k$
+	
+	\STATE $r_{k + 1} = b - Ax_{k + 1}$
+	
+	\STATE $\beta_k = \frac{-r_{k + 1}Ap_k}{p_k^TAp_k}$
+	
+	\STATE $p_{k + 1} = r_{k + 1} + \beta_k p_k$
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+		Les opérations les plus coûteuses sont trois produits matrice-vecteur, dont deux qui sont les mêmes. Elles peuvent être ramenées à une seule.
+		
+		Dans le pire des cas, $A$ est une matrice pleine. On a alors une complexité de $\bigo(n^2)$, donc $\bigo(n^3)$ car on considère $n$ itérations.
+		
+		La complexité est égale à
+		
+		$$\text{nombre d'itération } \times \text{ nombre de dimension dans } x \times \text{ nombre d'éléments non nuls dans A}$$
+		
+		On converge en un très petit nombre d'itérations.
+		
+		\subsubsection{Optimisation du conditionnement}
+		
+		Pour que l'algorithme tourne mieux, on va modifier le problème en multipliant le système par une \textit{matrice de préconditionnement} (\textit{preconditionner}), afin de diminuer le nombre de conditionnement. Idéalement, c'est l'inverse :
+		
+		$$\underbrace{A^{-1}A}_Ix = A^{-1}b$$
+		
+		$\kappa$ est très bon, mais cela n'a pas de sens.
+		
+		On peut définir un preconditionner $P$ de plusieurs façons :
+		
+		\begin{itemize}
+			\item $P_{ii} = \frac{1}{A_{ii}}$ : diagonal preconditionner
+			\item $P = (ILU)^{-1}$ : on effectue une factorisation LU incomplète, qui permet d'éviter le phénomène de fill-in. En fait, dans l'algorithme de LU, on ne met à jour $a_{i j}$ que s'il n'est pas nul. Cela évite ainsi d'introduire des valeurs non nulles à des emplacements de valeurs nulles. 
+		\end{itemize}
+		
+		\subsubsection{Cas général}
+		
+		L'algorithme est limité aux matrices $A$ symétriques positives. Si elle ne l'est pas, on va devoir stocker beaucoup de $p_k$.
+		
+		Dans le cas le plus général, les directions s'obtiennent ainsi :
+		
+		$$p_{k + 1} = r_{k + 1} + \sum_{l < k + 1} \beta_{lk} p_l$$
+		
+		La direction suivante dépend des directions précédentes.  Le problème est de calculer les $\beta_{lk}$.
+		
+		On peut obtenir la prochaine itération en imposant des conditions d'orthogonalités, par exemple sur les résiduels :
+		
+		\begin{itemize}
+			\item $r_k^Tr_l = 0 \quad \forall k \neq l$
+			\item $r_k^TAr_l = 0 \quad \forall k \neq l$
+		\end{itemize}
+				
+		[page 189 ?]
+		
+		Pour forcer les conditions d'orthogonalité, on peut utiliser l'algorithme de Gram-Schmidt [magnifique dessin notes p7 (29/11/11)]. La recherche des valeurs propres se fait dans l'espace de Krylov, un ensemble obtenu en multipliant un certain nombre de fois la matrice $A$ à un vecteur.
+		
+		$$\ens{r_0, Ar_0, AAr_0, \dots , A^kr_0}$$
+		
+		
+		On est cependant toujours limité à des matrices $A$ carrées. On va considérer des matrices qui peuvent être rectangulaires : ce sont des systèmes sur-déterminés.
+		
+		Par exemple, prenons le système
+		
+		$$\begin{bmatrix}
+1 & 0 \\ 
+0 & 1 \\ 
+1 & 1
+\end{bmatrix} \begin{bmatrix}
+x_1 \\ 
+x_2
+\end{bmatrix} = \begin{bmatrix}
+1 \\ 
+1 \\ 
+1
+\end{bmatrix} $$
+		
+		\dessin{chapter5/14}
+		
+		On a $span(A) = \ens{\begin{bmatrix}
+1 \\ 
+0 \\ 
+1
+\end{bmatrix}, \begin{bmatrix}
+0 \\ 
+1 \\ 
+1
+\end{bmatrix}  }$. C'est un espace de vecteurs engendrés par les combinaisons linéaires des colonnes de $A$. $\begin{bmatrix}
+x_1 \\ 
+x_2
+\end{bmatrix} $ est un vecteur du plan.
+
+	{\color{green}$A\tilde{x}$} est la meilleur solution, car elle minimise la distance entre $b$ et  le plan, qui est {\color{red}$b - A\tilde{x} = r$} (le résiduel).
+	
+	On a
+	\begin{eqnarray}
+	& A^T r = 0 \\
+	\Leftrightarrow & A^T(b - A\tilde{x}) = 0 \\
+	\Leftrightarrow & A^Tb - A^TA\tilde{x} = 0 \\
+	\Leftrightarrow & A^TA\tilde{x} = A^Tb
+	\end{eqnarray}
+	
+	Cette équation forme une équation normale.
+	
+	Il s'agit de la least square solution. Le nombre de conditionnement est pris au carré, il va falloir utiliser des préconditionneurs.
+		
+\section{Application : solution d'équations aux dérivées partielles}
+
+Le but est de passer d'une PDE (partial differential equation) à un ensemble d'équations.
+
+	\subsection{Différence finie}
+	
+	On va approximer la dérivée, avec par exemple le développement de Taylor :
+	
+	$$\frac{du}{dx}\vert_x \approx \frac{u(x + h) - u(x - h)}{2h}$$
+	
+	\dessin{chapter5/4}
+	
+	L'approximation est bonne, mais l'erreur est proportionnelle à $h^2$. Une approximation de la dérivée seconde peut s'obtenir sur le même principe que la dérivée première.
+	
+	$$\frac{d^2u}{dx^2}\vert_x \approx \frac{u(x + h) - 2u(x) + u(x - h)}{h^2} = \frac{\frac{u(x + h) - u(x)}{h} - \frac{u(x) - u(x - h)}{h}}{h}$$
+	
+	\dessin{chapter5/5}
+	
+	En deux dimensions, on a
+	
+	$$\frac{\vartheta^2u(x, y)}{\vartheta x^2} \approx \frac{u(x + h, y) - 2u(x, y) + u(x - h, y)}{h^2}$$
+	
+	$$\frac{\vartheta^2u(x, y)}{\vartheta y^2} \approx \frac{u(x, y + h) - 2u(x, y) + u(x, y - h)}{h^2}$$
+	
+	
+	
+	$$\Rightarrow \frac{1}{h^2}(u_{k + 1, l} - 2u_{k, l} + u_{k - 1, l} + u_{k, l + 1} - 2u_{k, l} + u_{k, l - 1}) = f_{k, l}$$
+	$$\Leftrightarrow - 4 u_{k, l} + u_{k - 1, l} + u_{k + 1, l} + u_{k, l - 1} + u_{k, l + 1} = h^2 f_{k, l}$$
+	
+	\dessinS{chapter5/6}{.74}
+	
+	
+	On arrive à $A u = F$, A étant une matrice creuse. Le schéma dans A dépend de la manière d'ordonner les inconnues dans $x$. On pourrait avoir ceci par exemple.
+	
+	\dessinS{chapter5/7}{.74}
+	
+	Cette méthode fonctionne bien pour des domaines réguliers, mais en pratique ce n'est pas toujours le cas. La solution est de placer les points du mieux qu'on peut.
+	
+	\dessin{chapter5/8}
+	
+	On pourrait également vouloir plus de précision dans certaines zones du domaine : il suffit d'augmenter la densité de points.
+	
+	Il faut également mettre en place une connectivité entre les points, par exemple avec des triangles (triangulation).
+	
+	
+	\subsection{Volumes finis}
+	
+	$$\int_{\text{triangle}} \Delta2 u = \int_{\text{triangle}} div(grad (u)) =_{\text{Théorème de Gauss}} \int_{\vartheta \text{ triangle } \rightarrow \text{ bords du triangle}} \vec{n} . grad(u)$$
+	
+	$$\underbrace{\vec{n}.grad(u)}_{\vartheta_nu} \approx \frac{u_i - u_j}{h}$$
+	
+	On le fait pour tous les triangles pour avoir un ensemble d'équations.
+	
+	\dessinS{chapter5/9}{.74}
+	
+	\subsection{Éléments finis}
+	
+	On suppose qu'on peut étendre la solution à une combinaison linéaire de fonctions basiques ($s_i$).
+	
+	$$u(x, y) = \sum_{i = 1}^N u'_i s_i(x, y)$$
+	
+	Les inconnues sont $u(x, y)$ et les $u'_i$. On a alors
+	
+	$$\Delta u(x, y) = f(x, y) \Leftrightarrow \Delta (\sum_i u_i s_i(x, y) = f(x, y)) \Leftrightarrow \sum_{i = 1}^N u_i \Delta s_i(x, y) = f(x, y)$$
+	
+	Il y a ainsi $N$ coefficients inconnus $u_i$. On va alors utiliser $N$ équations (collocation).
+	
+	$$\left\{
+	\begin{array}{l}
+	\sum_{i = 1}^N u_i \Delta s_i(x_1, y_1) = f(x_1, y_1) \\
+	\sum_{i = 1}^N u_i \Delta s_i(x_2, y_2) = f(x_2, y_2) \\
+	\dots \\
+	\sum_{i = 1}^N u_i \Delta s_i(x_N, y_N) = f(x_N, y_N)
+\end{array}
+\right.$$
+
+	On peut transformer l'équation :
+	
+	$$\Theta_j / \sum_{i = 1}^N \underbrace{u_i (\Delta s_i(x, y) - f(x, y))}_{\text{résiduel}} = 0$$
+	
+	

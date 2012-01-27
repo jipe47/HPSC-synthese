@@ -1,0 +1,180 @@
+\chapter{Annexes}
+
+\section{Erreurs de troncature, d'arrondi, absolue et relative}
+
+Deux types d'erreur existent :
+
+\begin{itemize}
+	\item les erreurs de troncature : coupure dans le développement décimal d'un nombre, par exemple $4.4579 \rightarrow 4.457$.
+	\item les erreurs d'arrondi : troncature avec augmentation ou diminution du dernier chiffre, par exemple $4.4579 \rightarrow 4.458$.
+\end{itemize}
+
+Les erreurs peuvent être exprimée sous forme absolue ou relative :
+
+$$\text{erreur absolue } = \vert \text{ valeur exacte } - \text{ valeur approximée } \vert$$
+
+$$\text{valeur relative } = \vert\frac{\text{erreur absolue}}{\text{valeur exacte}}\vert$$
+
+$$\text{valeur approximée } = \text{ valeur exacte } + \text{ erreur absolue} = \text{valeur exacte} (1 + \text{ erreur relative})$$
+
+
+\section{Data reuse ratio}
+
+Soit $n$ le nombre d'opérations mémoires (load ou store) , et $f(n)$ le nombre d'opérations mathématiques (addition, multiplication, etc). On a le taux de réutilisation
+
+$$\frac{f(n)}{n}$$
+
+Exemple de l'addition de vecteurs : $n = 3$ et $f(n) = 1$.
+
+$$\forall i : x_i \leftarrow x_i + y_i$$
+	
+Exemple de l'opération axpy : $n = 3$ et $f(n) = 2$. Il y a une opération en plus, mais elle est amortie car le nombre d'accès mémoire est le même. C'est donc plus efficace qu'une simple addition, d'un point de vue réutilisation des données.
+
+$$\forall i : x_i \leftarrow x_i + a . y_i$$
+	
+\section{BLAS}
+
+(2.2.7 dans "Parallel Scientific Computing in C++ and MPI")
+
+Les opérations matricielles et vectorielles sont très communes dans les programmes scientifiques, des efforts ont ainsi été produits pour standardiser et optimiser ces opérations.
+
+Les deux opérations les plus communes sont le produit scalaire (\textit{inner product}) et l'\textit{outer product}. Il y a également d'autres opérations matricielles (produit matrice-vecteur, matrice-matrice, etc).
+
+\dessin{annexe/innerouterproduct}
+
+On va classer les opérations selon leur complexité : $\bigo(n)$ (inner product, $n$ étant la taille des vecteurs), $\bigo(n^2)$ (outer product) et $\bigo(n^3)$.
+
+Ces niveaux d'opérations sont repris par la librairie BLAS (Basic Linear Algebra Subprograms), un ensemble de routines d'opérations matricielles et vectorielles. Elles sont optimisées pour l'architecture, par les vendeurs ou grâce à de l'autotuning.
+
+ATLAS (Automatically Tuned Linear Algebra Software) est une adaptation de BLAS, et permet de déterminer quelle est l'approche la plus optimale pour exécuter des procédures selon la plate-forme.
+
+	\subsection{Routines BLAS}
+On distingue 3 niveaux de routines BLAS :
+
+\begin{itemize}
+	\item BLAS1 : il s'agit des opérations effectuées en temps linéaire ($\bigo(n)$), cela inclus le produit scalaire, l'addition de vecteurs, etc.
+	\item BLAS2 : il s'agit des opérations effectuées en temps quadratique ($\bigo(n^2)$), en particulier le produit matrice-vecteur.
+	\item BLAS3 : il s'agit des opérations effectuées en temps cubique ($\bigo(n^3)$), en particulier le produit matrice-matrice.
+\end{itemize}
+
+	\subsection{Temps d'exécution}
+	
+	$$T = n_f * \delta_t + n_m \times \tau = n_f \times \delta_t (1 + \frac{n_m}{n_f} \times \frac{\tau}{\delta_t})$$
+	
+	Avec
+	
+	\begin{itemize}
+		\item $T$ le temps total,
+		\item $n_f$ le nombre d'opérations en virgule flottante,
+		\item $\delta_t$ le temps pour effectuer une opération,
+		\item $n_m$ le nombre d'accès en mémoire, et
+		\item $\tau$ le temps d'accès en mémoire.
+	\end{itemize}
+	
+	Le ratio $\frac{n_m}{n_f}$ est très important dans la minimisation du temps total. Pour chaque routine BLAS, on peut estimer ce ratio :
+	
+	\begin{itemize}
+		\item BLAS1 (opération saxpy) : $n_f = 2n$, $n_m = 3n + 1$, donc $\frac{n_m}{n_f} \rightarrow \frac{3}{2}$ pour $n \gg$
+		\item BLAS2 (produit matrice-vecteur) : $n_f = 2n^2$, $n_m = n^2 + 3n$, donc $\frac{n_m}{n_f} \rightarrow \frac{1}{2}$ pour $n \gg$
+		\item BLAS3 (produit matrice-matrice) : $n_f = 2n^4$, $n_m = 4n^3$, donc $\frac{n_m}{n_f} \rightarrow \frac{2}{n}$ pour $n \gg$
+	\end{itemize}
+	
+	Plus une matrice est grande, plus des opérations BLAS de haut niveau sont efficaces avec des grandes matrices (le FLOPS augmente).
+	
+	
+\section{Parallélisme mathématique}
+
+	\subsection{Analyse du speedup du produit scalaire}
+(Notes et 2.3.2 dans "Parallel Scientific Computing in C++ and MPI")
+
+Soit le problème du produit scalaire : c'est un calcul facilement parallélisable (il est dit embarassingly parallel), car chaque itération de la boucle est indépendante des autres.
+
+$$c = \sum_i x_i \times y_i$$
+
+Par exemple, si on a un nombre de processeurs/coeurs $P$ pair et un vecteur de taille $N$ paire, on peut diviser le vecteur en deux, effectuer deux sous-sommes, puis additionner les résultats :
+
+$$\sum_{i = 1}^{\frac{N}{2}} x_i y_i \text{ et } \sum_{i = \frac{N}{2} + 1}^N x_i y_i$$
+
+Cette division du problème initial en deux sous-problèmes plus simples est l'approche dite \textit{divide-and-conquer}. C'est aussi connu sous le nom d'algorithme \textit{recursive-doubling}.
+
+Supposons qu'une addition nécessite un temps $\delta t$ (de l'ordre de la nanoseconde).
+
+\begin{itemize}
+	\item En série, $T_1 = (N - 1) \delta t$
+	\item En parallèle, $T_2 = (\frac{N}{2} - 1) \delta t + \delta t + C$, $C$ étant le temps de communication nécessaire pour collecter les données.
+\end{itemize}
+
+On a comme speedup
+
+$$S_2 = \frac{T_1}{T_2} = \frac{N - 1}{\frac{N}{2} + \frac{C}{\delta t}}$$
+
+Lorsque $\frac{C}{\delta t} \ll$, on a $S_2 = 2$.
+
+Supposons que $P = N = 2^q$, donc on réduit l'évaluation d'un produit scalaire à la somme de deux nombres sur chaque processeur. Par exemple, $P = N = 8$ donne
+
+\dessinS{annexe/dotproduct}{.74}
+
+Le nombre d'étages est $q$. On a alors, pour $P$ processeurs, $T_p = q \delta t + q C$ ($qC$ est le coût total des communications), le speedup devient alors
+
+$$S_P = \frac{T_1}{T_P}  = \frac{(N - 1) \delta t}{q \delta t + qC}$$
+
+Posons $\alpha = \frac{C}{\delta t}$. On peut alors réécrire le speedup uniquement en terme de $P$ et de $N$ :
+
+
+$$S_P = \frac{N - 1}{(1 + \alpha ) \log_2 N} = \frac{P - 1}{(1 + \alpha ) \log_2 P}$$
+
+Théoriquement, il n'y a pas de temps de communication, donc $\alpha = 0$. On a alors
+
+$$S_P = \frac{P - 1}{\log_2 P} < P$$
+
+Soit $\eta_P$ l'efficacité parallèle défini par $\eta_P = \frac{S_P}{P}$. Un problème qui est EP (embarassingly parallel) aura $\eta_P = 1$.
+
+On obtient alors
+
+$$\eta_P = \frac{S_P}{P} = \frac{P - 1}{P \log_2 P} < 1$$
+
+Même si on ignore les temps de communication, l'efficacité de cet algorithme n'est que presque-parfaite.
+
+Le problème est que, plus on avance dans l'algorithme, moins les processeurs travaillent, ils ne sont pas utilisés tout le temps. Ainsi, à chaque étage $n$, seule la moitié des processeurs utilisés à l'étage $n - 1$ est occupée.
+
+Si on prend en compte les temps de communication, et si $\alpha = 1$ (ce qui est très avantageux : on met autant de temps à faire une addition qu'à envoyer un message), on obtient
+
+$$S_P(\alpha = 1) = \frac{1}{2}S_P(\alpha = 0)$$
+
+Même avec un $\alpha$ très avantageux, il y a une dégradation des performances de $50\%$.
+
+En pratique, il y a des autres facteurs qui font que l'efficacité parallèle diminue. Par exemple, $N$ n'est pas nécessaire pair, ni une puissance de $2$.
+
+
+	\subsection{Caractérisation du réseau de communication}
+	
+	Modèle pour le calcul du coût de communication :
+	
+	$$C = L + \beta^{-1}l$$
+	
+	avec
+	
+	\begin{itemize}
+		\item $L$ la latence, le temps entre la demande et la réponse (paramètre dominant) ;
+		\item $\beta$ la bande-passante, en bit/sec ;
+		\item $l$ la longueur des messages.
+	\end{itemize}
+	
+	Les limitations d'un réseau viennent des protocoles (leurs en-têtes) et des CPUs (qui participent à l'encodage).
+	
+	En Gigabit, $L \approx 50-120 \mu s$.
+	
+	L'infiniband QDR a un débit théorique de $40Gb/s$, l'encodage est fait sur un processeur dédié et les câbles sont plus gros. On a $L \approx 10 ns$ (en théorie), mais c'est 30\% plus cher par rapport à du Gigabit. \\
+	
+\begin{center}
+	
+	\begin{tabular}{|c|c|c|c|}
+\hline 
+  & Infiniband DDR & 10 Gb & Gb \\ 
+\hline 
+Latence & $2\mu s$ & $8 \mu s$ & $50 \mu s$ \\ 
+\hline 
+Bande-passante & 1500 MB/s & 1000 MB/s & 112.5 MB/s \\ 
+\hline 
+\end{tabular} 
+\end{center}

@@ -1,0 +1,41 @@
+\chapter{Arithmétique informatique}
+
+(Pour information)
+
+\section{Nombres entiers}
+
+Un entier est représenté sur 16, 32 ou 64 bits.
+Pour coder les entiers négatifs, on peut utiliser un \textit{bit de signe}.
+
+\dessin{chapter3/signedbit}
+Mais on a deux représentations du $0$.
+Le plus souvent, on code le \textit{complément à 2} d'un nombre:
+\begin{itemize}
+\item Si $0 \le m \le 2^{31} - 1$, $m$ est codé normalement.
+\item Si $-2^{31} \le m \le - 1$, on code $2^{32} - |n|$.
+\end{itemize}
+
+\dessin{chapter3/2scomplement}
+
+\section{Représentation des nombres réels}
+
+Un nombre réel $x$ est représenté de la manière suivante:
+
+\dessin{chapter3/real}
+
+Les composants sont:
+\begin{itemize}
+\item Le \textit{bit de signe}.
+\item $\beta$ est la \textit{base}.
+\item $0 \le d_i \le \beta - 1$ les nombres de la \textit{mantisse}.
+\item $t$ est la longueur de la mantisse.
+\item $e \in [L,U]$ est l'\textit{exposant}; typiquement $L < 0 < U$ et $L \approx -U$.
+\end{itemize}
+
+Le plus grand nombre encodable est $(1 - \beta^{-t-1}) \beta^U$, et le plus petit est $-(1 - \beta^{-t-1}) \beta^U$.
+Si on tente d'encoder un nombre hors de cet intervalle, il y a \textit{overflow}.
+Le nombre le plus proche de $0$ encodable est $\beta^{-t-1} \beta^L$, sinon il y a \textit{underflow}.
+
+\section{Conclusion}
+
+Il peut y avoir des erreurs d'arrondi lors de l'encodage de nombres réels, il faut en tenir compte.

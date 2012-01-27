@@ -1,0 +1,622 @@
+\chapter{Calcul séquentiel}
+
+\section{L'architecture de Von Neumann}
+
+A un niveau d'abstraction élevé, la plupart des architectures peuvent être considérées comme des \textit{architectures de Von Neumann}. Ce type d'architecture est caractérisé par une mémoire qui contient à la fois les \textit{données} et le \textit{programme}, et une \textit{unité de contrôle} qui exécute les instructions.
+Cette configuration de la mémoire permet aux programmes de se modifier eux-même et de créer d'autres programmes.
+
+Les instructions machines exécutées par le processeur, au contraire des langages de haut niveau, spécifient le nom de l'opération
+ainsi que l'adresse des opérandes et du résultat. Ces adresses ne sont pas des adresses mémoire mais des registres.
+
+Par exemple la routine C suivante:
+\begin{verbatim}
+void store(double *a, double *b, double *c) {
+*c = *a + *b;
+}
+\end{verbatim}
+et son équivalent en assembleur X86:
+\begin{verbatim}
+.text
+.p2align 4,,15
+.globl store
+.type store, @function
+store:
+movsd (%rdi), %xmm0 # Load *a to %xmm0
+addsd (%rsi), %xmm0 # Load *b and add to %xmm0
+movsd %xmm0, (%rdx) # Store to *c
+ret
+\end{verbatim}
+
+Les instructions sont:
+\begin{itemize}
+	\item un chargement de la mémoire vers les registres (load),
+	\item un second chargement et une addition, et
+	\item une écriture du résultat dans la mémoire.
+\end{itemize}
+	
+Chaque instruction est effectuée comme suit:
+
+\begin{itemize}
+	\item \textbf{Instruction fetch}: l'instruction suivante selon le compteur de programme est chargée dans le processeur.
+	\item \textbf{Instruction decode}: le processeur analyse l'instruction pour déterminer l'opération et les opérandes.
+	\item \textbf{Memory fetch}: si nécessaire, des données sont chargées dans les registres depuis la mémoire.
+	\item \textbf{Execution}: l'opération est exécutée, les données sont lues depuis les registres, puis le résultat y est placé. 
+	\item \textbf{Write-back}: pour les opérations de stockage (store), le contenu des registres est écrit en mémoire.
+\end{itemize}
+
+Les $CPU$ contemporains opèrent plusieurs instructions simultanément, chacune à un niveau de complétion différent. 
+C'est l'idée de base de l'architecture \textit{superscalar CPU} ou \textit{Instruction Level Parallelism} ($ILP$).
+
+La caractéristique la plus souvent citée d'un $CPU$ pour exprimer son efficacité est la fréquence d'horloge, impliquant
+qu'elle était le facteur le plus déterminant pour obtenir de meilleurs performances. Il est évident qu'il existe une corrélation entre la vitesse du processeur et les performances de l'ordinateur, mais ce n'est pas toujours le cas. Certains algorithmes sont limités par la vitesse du $CPU$, d'autres par la mémoire, la vitesse du $BUS$ ou encore la taille de la cache.
+
+\section{Unités en virgule flottantes modernes}
+
+La plupart des processeurs modernes sont capables d'effectuer plusieurs opérations simultanément.
+
+Par exemple, on a souvent des opérations d'addition et de multiplication séparées dans le code. Si le compilateur
+ trouve de telles opérations indépendantes, il peut planifier leur exécution simultanée, ceci doublant les performances du processeur. Une autre façon d'augmenter les performances est d'avoir une \textit{fused multiply-add unit} qui exécute l'instruction : 
+\begin{verbatim}
+x =  ax + b 
+\end{verbatim}
+avec le même temps d'exécution qu'une opération add ou mul simple. Combiné à du \textit{pipelining}, on peut atteindre une complexité asymptotique de plusieurs FPO (Floating Point Operation) par cycle d'horloge.
+
+	\subsection{Pipelining}
+	
+	(Lire pour information) Le problème d'une exécution d'une instruction en un cycle est que ce cycle peut être potentiellement long, notamment s'il y a des accès mémoire.
+	
+	Le but du pipelining est de décomposer l'exécution d'une instruction en plusieurs phases (Instruction Fetch, Instruction Decode, etc), qui seront assignées à des composants capables de les exécuter en un cycle.
+	
+	De plus, l'idée est qu'avec des opérations suffisament indépendantes, on peut les exécuter simultanément dans le pipeline : quand une instruction a terminé la partie Instruction Fetch et rentre dans l'Instruction Decode, la prochaine instruction rentre dans l'Instruction Fetch.
+	
+	\dessin{chapter1/pipeline}
+	
+	Ce découpage permet d'accélérer beaucoup d'opérations. Ainsi, une seule instruction nécessitera par exemple 4 cycles, mais l'instruction suivante n'en nécessitera qu'un en plus. Il faudra, pour $n$ opérations exécutées sur un pipeline de $s$ segments, $s + n - 1$ cycles.
+	
+	On peut obtenir des speed up de 4, 5 voir 6, mais cette accélération est limitée.
+	
+	\subsection{Pipelining et ILP}
+	
+	(Lire pour information) L'\textit{Instruction-level Parallelism} est la mesure du nombre d'opérations dans un programme qui peuvent être exécutées simultanément. Pour augmenter cette mesure, on dispose de plusieurs mécanismes :
+	
+	\begin{itemize}
+		\item multiple-issue : les instructions indépendantes peuvent être démarrées en même temps ;
+		\item pipelining ;
+		\item prédication de branchement ;
+		\item exécution des instructions dans le désordre ;
+		\item prefetching : on demande les données à l'avance, avant qu'une instruction n'en ait besoin.
+	\end{itemize}
+	
+	Avec la montée des fréquences des processeurs, les pipelines se sont allongés (pour rendre les segments exécutables en moins de temps). Cela nécessite cependant que les instructions soient de plus en plus indépendantes les unes des autres. Actuellement on est arrivé à une limite : rendre les pipelines plus long n'apporte plus de gain. Il faut aller chercher dans les architectures multi-coeur pour obtenir de nouveaux gains.
+	
+	De plus, un autre problème des pipelines réside dans les points de branchement dans le code, où on ne sait pas clairement quelle sera la prochaine instruction à exécuter. Il y a une prédiction : le processeur va supposer que la condition est vérifiée, et ce avant d'effectuer le test. Si, en fin de compte, l'autre branche devait être prise (\textit{branch misprediction}), le pipeline doit être vidé et redémarré, ce qui ne manque pas d'introduire un délai dans l'exécution (\textit{branch penalty}).
+
+	\subsection{8, 16, 32 et 64 bits}
+	
+Les processeurs sont souvent caractérisés par la taille du \textit{chunk of data} qu'ils peuvent traiter comme une unité.
+
+En voici les causes:
+\begin{itemize}
+	\item Le nombre de lignes de données entre la mémoire et le processeur (64 bits chargés en une fois).
+	\item La façon dont la mémoire est adressée : si les adresses sont limitées à 16 bits, seuls $64000$ bytes peuvent être
+adressés. 
+	\item Le nombre de bits des registres, et en particulier la taille des registres d'entiers qui manipulent les adresses (voir point précédent). Cela correspond également à la quantité de données que le processeur peut traiter simultanément.
+	\item La taille d'un nombre à virgule flottante. L'ALU d'un CPU peut être conçue pour multiplier des nombres \textit{double précision}, alors les \textit{simple précision} sont susceptibles d'être traités plus rapidement.
+\end{itemize}
+
+Ces paramètres ne sont pas nécessairement identiques. Par exemple, un Pentium possède un bus de 64 bits de largeur, mais opère sur 32 bits.
+
+Les processeurs 64 bits deviennent les plus répandus.
+
+\section{Hiérarchie mémoire}
+
+Dans l'\textit{architecture de Von Neumann}, les données sont chargées immédiatement de la mémoire vers le processeur.
+
+Cela est irréaliste car une opération de chargement peut prendre jusqu'à 1000 cycles d'horloge, alors que le processeur peut effectuer plusieurs opérations en un cycle. En réalité, on utilise plusieurs niveaux de mémoire répartis entre les registres et les caches. Chaque niveau sera plus rapide que le précédent, mais également de plus petite capacité. 
+
+L'usage des registres est une mesure efficace contre la lenteur des accès mémoire. L'accès à ceux-ci est presque instantané. Les données peuvent également y être conservées pendant un calcul, pour éviter des accès répétés à la mémoire.
+
+Par exemple:
+\begin{verbatim}
+s = 0;
+for (i=0; i<n; i++)
+    s += a[i]*b[i];
+\end{verbatim}
+
+La variable $s$ ne doit être stockée en mémoire centrale qu'à la fin de la boucle, les valeurs intermédiaires sont écrasées immédiatement. Le compilateur va donc faire en sorte que le processeur garde $s$ dans un registre et ne l'écrive en mémoire qu'à la fin de la boucle.
+
+	\subsection{Bus}
+
+Les lignes sur lesquelles les données se déplacent dans l'ordinateur sont appelées les \textit{BUSs}. Le plus important est le \textit{Front-Side Bus} qui connecte le processeur à la mémoire. On distingue parfois le \textit{north bridge} du \textit{south bridge} qui connecte les périphériques externes, sauf le contrôleur graphique.
+
+\dessin{chapter1/bus}
+
+Le bus est souvent plus lent que le processeur (1 Ghz), on utilisera des caches. La bande-passante du bus est typiquement de 64 ou 128 bits par cycle.
+	
+	\subsection{Latence et bande-passante}
+
+Il existe deux concepts importants pour décrire les mouvements de données :
+\begin{itemize}
+	\item \textbf{la latence} (latency):
+c'est le délai entre la requête et la réception de données. On peut distinguer plusieurs latences, comme celle entre la mémoire et la cache, entre la cache et les registres, etc.
+
+Elle est mesurée en (nano)secondes ou période d'horloge. Si le processeur exécute les instructions dans l'ordre du code asm, l'exécution sera souvent suspendue par l'attente de transfert de données (\textit{memory stall}). Pour cette raison, une latence basse est très importante. En pratique, un processeur peut effectuer des opérations pendant ce temps. Le programmeur peut prendre cela en compte pour masquer la latence. 
+	\item \textbf{la bande-passante} (bandwidth): c'est le taux d'arrivage des données à destination après la latence initiale.
+Elle est mesurée en bytes par seconde ou par cycle d'horloge. C'est souvent le produit de la vitesse du bus par le nombre de lignes.
+\end{itemize}
+
+Ces concepts sont rassemblés dans la formule du temps de transfert d'un message:
+\begin{equation}
+T(n) = \alpha + \beta n
+\end{equation}
+où $\alpha$ est la latence et $\beta$ est l'inverse de la bande-passante (le temps par bytes).
+
+La plupart du temps, plus on est loin du processeur, plus la latence est grande et la bande-passante est faible. Il est donc important d'utiliser les caches et les registres plutôt que la mémoire.
+
+Considérons l'addition de vecteur:
+\begin{verbatim}
+for (i)
+  a[i] = b[i]+c[i]
+\end{verbatim}
+Chaque itération effectue une FPO, cela peut être fait facilement par un $CPU$ avec \textit{pipelining}.
+
+Par contre, chaque itération effectue deux chargements et un stockage, pour un total de 24 bytes de trafic mémoire.
+La figure ci-dessous nous montre qu'un tel algorithme exécuté sur un ordinateur sans cache peut être limité par les performances de la mémoire.
+
+\dessin{chapter1/cache}
+
+Ces concepts apparaîtront également dans le cadre de la programmation parallèle.
+	
+	\subsection{Registres}
+
+Les registres composent le niveau de mémoire le plus proche du processeur : chaque opération prend pour ses opérandes dans un registre et y écrit son résultat. Les programme asm les utilisent explicitement:
+\begin{verbatim}
+addl %eax, %edx
+\end{verbatim}
+Les registres ne sont pas numérotés, on y réfère par leur noms. Ils ont une bande-passante élevée et une latence basse.
+
+C'est une ressource rare.
+
+	\subsection{Caches}
+	
+	(Lire pour information) Plusieurs niveaux de mémoire cache sont placés entre le processeur et la mémoire principale. Plus le niveau est élevé, plus la latence est faible, plus la bande-passante est élevée et plus la mémoire coûte cher.
+	
+	L'avantage d'avoir une mémoire cache est qu'on a des gains de temps si des données sont réutilisées, lorsqu'elles sont toujours en mémoire cache (l'accès est beaucoup plus rapide).
+	
+	Il y a généralement 3 niveaux de cache (L1, L2 et L3). Les caches L1 et L2 font partie du processeur, la L3 est généralement déportée sur la carte mère.
+	
+	Dans les architectures multi-coeur, la L1 peut être propre à un coeur, tandis que la L2 peut être partagée entre toutes les unités de calcul.
+	
+	\dessin{chapter1/cache2}	
+	
+	Ainsi, si des données sont nécessaires pour une opération, on va d'abord regarder en L1, puis en L2, et éventuellement en L3. Sinon, on les charge depuis la mémoire principale. Trouver des données en cache est appelé un \textit{cache hit}, ne pas les trouver s'appelle un \textit{cache miss}.
+	
+		\subsubsection{Data reuse}
+		
+		La présence de cache n'automatise pas le gain de performances, il faut que le code l'exploite. La cache ne sera pas correctement utilisée si chaque élément est utilisé une seule fois, par contre de multiples références gardera l'élément dans la cache, et donc garantira un accès rapide.
+	
+		\subsubsection{Polices de remplacement}
+		
+		Lorsqu'une cache est pleine, le système doit décider quelles données il faut écraser. En général, le principe du LRU (Least Recently Used) est appliqué. On pourrait effectuer une suppression aléatoire ou FIFO.
+		
+		\subsubsection{Lignes de cache}
+		
+		Les données ne sont pas déplacées de la mémoire centrale dans la cache par byte. Généralement, on prend 64 ou 128 bytes en une seule fois, ce qu'on appelle une ligne de cache.
+		
+		Un programme sera rendu plus efficace s'il tire parti des autres données dans la ligne de cache.
+		
+		\subsubsection{Cache mapping}
+		
+		[Page 20]
+		
+		Le problème est de passer d'une adresse mémoire à une adresse de cache. De même, que faire si des adresses différentes sont mappées au même endroit ?
+		
+		\subsubsection{Direct mapped caches}
+		
+		[Pages 20 et 21]
+		
+		On prend les bits les moins significatifs de l'adresse mémoire ; si l'adresse en cache est sur 16 bits, on prend les 16 premiers bits comme adresse). C'est simple à calculer et rapide, mais il y a des risques de conflit.
+		
+		\subsubsection{Caches associatives}
+			
+		[Pages 21 et 22]
+		
+		Les données vont à n'importe quel endroit de la cache. Si elle est pleine, on applique une politique de remplacement.
+		
+		C'est optimal, mais lent et les circuits sont coûteux. On utilise des caches associatives à $k$ emplacements. Plus $k$ est élevé, plus c'est lent, car déterminer quelles sont les adresses en cache est plus lent. C'est pour cela qu'une cache associative en L1 est plus petite qu'une cache associative en L2 ($k_{L1} < k_{L2}$).
+	
+	\subsection{Prefetch streams}
+	
+	(Lire pour information) Vu le principe de localité spatiale, un CPU va essayer de détecter des patterns dans les données, et va précharger des données en cache. Ainsi, le temps de latence entre le CPU et la mémoire est remplacé par la latence entre le CPU et la mémoire cache.
+	
+	\subsection{Transferts mémoire et concurrence}
+	
+	(Lire pour information) Pages 22 et 23.
+	
+	\subsection{Banques de mémoire}
+	
+	(Lire pour information) Page 23.
+	
+	\subsection{TLB et mémoire virtuelle}
+	
+	(Lire pour information) Pages 23 et 24.
+	
+\section{Puces multi-coeur}
+
+L'amélioration maximale des performances des CPU traditionnels a été atteinte:
+\begin{itemize}
+\item La fréquence d'horloge ne peut être augmentée d'avantage, car cela augmente la consommation d'énergie, ce qui fait
+trop chauffer la puce.
+\item Il n'est pas possible d'augmenter l'\textit{Instruction Level Parallelism} du code. La quantité de parallélisme intrinsèque disponible est limitée.
+\end{itemize}
+
+Pour continuer à augmenter les performances, on va utiliser plusieurs 'coeurs'. Ces coeurs ou noyaux peuvent effectuer des tâches distinctes ou non. Cela résout les deux problèmes précédents :
+
+\begin{itemize}
+	\item Deux coeurs à une fréquence plus basse peuvent avoir le même \textit{throughput} qu'un processeur simple coeur à une fréquence plus élevée. Les processeurs multi-coeurs sont plus économes en énergie.
+	\item le Discovered $ILP$ est remplacé par le parallélisme explicite, implémenté par le programmeur. 
+\end{itemize}
+
+La cache L2 est partagée par les noyaux, les noyaux peuvent travailler ensemble efficacement.
+
+La cache L1 est propre à chaque noyaux, d'où les problèmes de \textit{cache coherence}.
+
+Pour éviter toute ambiguité, on appellera \textbf{socket} la puce entière et \textbf{core} les noyaux (multiples ou non).
+
+Le modèle de programmation pour les processeurs multi-coeurs est un hybride entre mémoire partagée et mémoire distribuée:
+\begin{itemize}
+	\item \textit{Core}: Les noyaux ont leur propre cache L1 (mémoire distribuée).
+	\item \textit{Socket}: Sur un socket, on a souvent une cache L2 partagée entre les noyaux.
+	\item \textit{Node}: Il peut y avoir plusieurs sockets sur un unique node ou carte mère, qui ont accès à la même mémoire partagée.
+	\item \textit{Network}: Un schéma de mémoire distribuée est nécessaire pour la communication entre les noeuds.
+\end{itemize}
+
+	\subsection{Cohérence de cache}
+
+L'exécution d'instructions en parallèle nous amène à un nouveau problème, la cohérence des caches. Si un processeur altère une élément en mémoire, comment le contenu est-il mis à jour ?
+
+Dans les architectures à mémoire distribuée, les données sont réparties entre les processeurs. Un conflit peut uniquement avoir lieu en la connaissance du programmeur, c'est à lui de gérer ça.
+
+Dans les architectures à mémoire partagée, le problème est plus délicat. 
+
+Si deux cores ont une copie du même élément dans leur cache L1 et que l'un d'eux la modifie, il faut recharger l'élément à l'emplacement de la seconde copie. On maintient la cohérence du cache. Cela est fait à très bas niveau, le programmeur ne doit pas s'en charger. Cela va ralentir le calcul et gaspiller de la bande-passante, mais parfois on ne peut pas faire autrement.
+
+L'état d'une ligne de cache par rapport à un élément de donnée est décrit comme suit:
+\begin{itemize}
+	\item Scratch: la ligne de cache ne contient pas de copie de l'élément.
+	\item Valid: la ligne de cache contient une copie correcte de l'élément.
+	\item Reserved: la ligne de cache contient l'unique copie de l'élément.
+	\item Dirty: la ligne de cache a été modifiée, mais pas encore réécrite en mémoire centrale.
+	\item Invalid: l'élément est stocké dans la cache d'un autre noyau et y a été modifié.
+\end{itemize}
+
+On peut rencontrer ce problème même si les noyaux accèdent à des éléments différents.
+
+Par exemple:
+\begin{verbatim}
+double x,y;
+\end{verbatim}
+va allouer $x$ et $y$ proches l'un de l'autre en mémoire, probablement sur la même ligne de cache. Si un noyau modifie $x$ et un autre $y$, la ligne de cache sera continuellement déplacée entre les noyaux, c'est le faux partage ou \textit{false sharing}.
+	
+\section{Localité et réutilisation de données}
+
+L'idée générale est de minimiser les transferts de données de façon à ce que celles-ci restent le plus près possible du processeur.
+
+	\subsection{Réutilisation de données}
+	
+Les données utilisées lors d'une exécution d'un programme sont-elles réutilisées plusieurs fois, et donc pouvons-nous utiliser les caches et registres ? 
+
+Si un algorithme utilise $n$ éléments de donnée pendant $f(n)$ opérations, le \textit{taux de réutilisation des données} est de $\frac{f(n)}{n}$.
+
+Par exemple, l'addition de vecteurs:
+\begin{equation}
+\forall i : x_i \leftarrow x_i + y_i
+\end{equation}
+On a 2 load et 1 store pour une opération. Le taux est de $1/3$.
+
+\begin{equation}
+\forall i : x_i \leftarrow x_i + a y_i
+\end{equation}
+On a 2 opérations, et 3 accès mémoire. L'accès au $a$ n'est pas compté car il est amorti. Le taux est de $2/3$.
+
+Le produit scalaire:
+
+\begin{equation}
+\forall i : s \leftarrow s + x_i y_i
+\end{equation}
+
+est similaire, on a 2 opérations, mais plus que 2 accès mémoire car $s$ est conservé en cache et écrit à la fin. Le taux est de $1$.
+
+Le produit matrice-matrice:
+\begin{equation}
+\forall i,j : c_{i j} = \sum_k a_{i k} b_{k j}
+\end{equation}
+On a $3n^2$ éléments et $2n^3$ opérations.
+Le taux est $\bigo(n)$. On a donc tout intérêt à conserver les éléments en cache.
+
+	\subsection{Localité}
+
+Les deux concepts cruciaux sont la localité spatiale et la localité temporelle. 
+
+La \textit{localité temporelle} décrit l'usage d'un élément de donnée dans un court délai après son dernier usage.
+
+Comme la plupart des caches utilisent LRU, si entre deux utilisations d'un élément on a utilisé moins de données que la capacité de la cache, l'élément sera toujours accessible.
+
+Soit le code suivant:
+\begin{verbatim}
+for (loop=0; loop<10; loop++) {
+    for (i=0; i<N; i++) {
+        ... = ... x[i] ...
+    }
+}
+\end{verbatim}
+
+Chaque élément du vecteur est utilisé 10 fois, mais si l'ensemble des données utilisées est plus grand que la cache, on n'aura pas de réutilisation. 
+
+Si on peut échanger les boucles:
+\begin{verbatim}
+for (i=0; i<N; i++) {
+    for (loop=0; loop<10; loop++) {
+        ... = ... x[i] ...
+    }
+}
+\end{verbatim}
+Les éléments de x sont maintenant réutilisés et vont probablement rester dans le cache. Ce code exploite mieux le concept de localité temporelle.
+
+La \textit{localité spatiale} est exploitée si un programme référence un objet mémoire 'proche' de ceux auxquels il a déjà accédé. 
+
+
+Dans le fragment suivant:
+\begin{verbatim}
+for (i=0; i<N*s; i+=s) {
+    ... x[i] ...
+}
+\end{verbatim}
+
+Si $S$ est la taille de la ligne de cache, alors quand $s$ varie de 1 à $S$, le nombre d'éléments utilisés de la ligne de cache varie de $S$ à 1. Si $s=1$, on charge $\frac{1}{S}$ ligne de cache par élément, si $s = S$, on charge une ligne de cache par élément.
+
+ Comparons deux implémentations de la multiplication matricielle. On suppose que les matrices sont stockées par lignes et que la cache peut contenir une ligne/colonne entière.
+\begin{verbatim}
+for i=1..n
+    for j=1..n
+        for k=1..n
+            c[i,j] += a[i,k]*b[k,j]
+
+for i=1..n
+    for k=1..n
+        for j=1..n
+            c[i,j] += a[i,k]*b[k,j]
+\end{verbatim}
+
+\dessin{chapter1/mmproduct}
+
+On peut estimer le nombre d'opérations de chaque versions à $2n^3$. Mais leurs comportements en mémoire sont différents:
+
+\begin{itemize}
+	\item $c[i,j]$ : dans la première implémentation, $c[i,j]$ est invariant dans la boucle intérieure (localité temporelle). 
+On a donc $n^2$ load/store.
+
+Dans la seconde, $c[i,j]$ est chargé à chaque itération de la boucle intérieure, cela fait $n^3$ load/store.
+
+	\item $a[i,k]$ : les deux implémentations accèdent à $a[i,k]$ ligne par ligne, ce qui exploite la localité spatiale, chaque ligne de cache sera utilisée entièrement. 
+	
+Dans la deuxième version, $a[i,k]$ est invariant dans la boucle intérieure(localité temporelle), on peut le garder en cache.
+	\item $b[k,j]$ : dans les deux versions on accède $n^3$ fois à $b[k,j]$.
+	
+Dans la première version, on accède à $b[k,j]$ par colonne, vu la représentation mémoire des matrice c'est inefficace. En effet, on n'utilisera qu'un élément par ligne de cache.
+
+La deuxième version charge $b[k,j]$ par ligne, on exploite bien la localité spatiale.
+\end{itemize}
+
+\section{Stratégies de programmation pour la haute performance}
+
+	\subsection{Peak performance}
+	
+Pour des raisons marketing, on a besoin de définir la 'top speed' d'un CPU. Cette vitesse est calculée en faisant le produit de la fréquence par le nombre de \textit{floating point units} (FPU) et le nombre de noyaux. C'est une vitesse théorique et impossible à atteindre en pratique.
+
+	\subsection{Pipelining}
+
+Les \textit{FPU} des \textit{CPU} modernes sont toutes pipelinées. L'opération pipelinable typique est l'addition de vecteurs.
+
+Un exemple d'opération non pipelinable est le produit scalaire avec accumulateur:
+\begin{verbatim}
+for (i=0; i<N; i++)
+    s += a[i]*b[i]
+\end{verbatim}
+
+$s$ est à la fois lue et écrite. Pour rendre l'opération pipelinable, on applique le \textit{déroulage de boucle} (loop unrolling):
+\begin{verbatim}
+for (i = 0; i < N/2-1; i ++) {
+    sum1 += a[2*i] * b[2*i];
+    sum2 += a[2*i+1] * b[2*i+1];
+}
+\end{verbatim}
+On a maintenant deux multiplications distinctes.
+On peut encore améliorer l'indexage des tableaux:
+\begin{verbatim}
+for (i = 0; i < N/2-1; i ++) {
+    sum1 += *(a + 0) * *(b + 0);
+    sum2 += *(a + 1) * *(b + 1);
+    a += 2; b += 2;
+}
+\end{verbatim}
+On utilise les propriétés d'associativité et de commutativité de l'addition.
+
+On peut encore séparer les additions des multiplications en espérant que, pendant que les accumulateurs attendent le résultat de la multiplication, les incrémentations soient effectuées, et ainsi augmenter le nombre d'opérations par seconde.
+\begin{verbatim}
+for (i = 0; i < N/2-1; i ++) {
+    temp1 = *(a + 0) * *(b + 0);
+    temp2 = *(a + 1) * *(b + 1);
+    sum1 += temp1; sum2 += temp2;
+    a += 2; b += 2;
+}
+\end{verbatim}
+
+On exploite cette idée au maximum en plaçant l'addition le plus loin possible de la multiplication:
+
+\begin{verbatim}
+for (i = 0; i < N/2-1; i ++) {
+    sum1 += temp1;
+    temp1 = *(a + 0) * *(b + 0);
+    sum2 += temp2;
+    temp2 = *(a + 1) * *(b + 1);
+    a += 2; b += 2;
+}
+s = temp1 + temp2;
+\end{verbatim}
+
+Pour encore améliorer le code, on pourrait ré-appliquer le \textit{déroulage de boucle} avec un plus grand facteur.
+Mais il faut éviter d'utiliser plus de registres qu'il n'en existe (register spill) car cela diminue les performances. 
+De plus c'est une méthode qui peut s'avérer compliquée à appliquer.
+	
+	\subsection{Taille de cache}
+	
+On a vu que la cache L1 a moins de latence et plus de bande-passante que la cache L2, qui est elle même plus rapide que la cache L3. On peut vérifier cela  avec ce fragment de code qui accède aux mêmes données de façon répétée:
+\begin{verbatim}
+for (i=0; i<NRUNS; i++)
+    for (j=0; j<size; j++)
+        array[j] = 2.3*array[j]+1.2;
+\end{verbatim}
+Si le tableau est plus petit que la cache L1, l'opération sera plutôt rapide. Quand on augmente la taille du  tableau, il ne pourra plus rentrer entièrement dans la L1, la vitesse sera déterminée par la latence/bande-passante de la cache L2.
+
+Il est possible de s'arranger pour garder les données en cache L1:
+\begin{verbatim}
+for (i=0,n=0; i<L1WORDS; i++,n+=stride)
+    array[n] = 2.3*array[n]+1.2;
+\end{verbatim}
+
+Cette stratégie s'appelle le \textbf{cache blocking}.
+
+\dessin{chapter1/cachesize}
+
+	\subsection{Lignes de cache}
+
+On a vu que les programmes qui n'utilisent pas l'intégralité des données en cache le payaient en bande-passante.
+Exemple:
+\begin{verbatim}
+for (i=0,n=0; i<L1WORDS; i++,n+=stride)
+    array[n] = 2.3*array[n]+1.2;
+\end{verbatim}
+On a un nombre fixe d'opérations, mais sur des éléments à une distance \textit{stride} les uns des autres. Si cette distance augmente, on s'attend a une augmentation du temps d'exécution. 
+
+\dessin{chapter1/cacheuse}
+	
+	\subsection{TLB}
+
+(Pour information)
+Un TLB, ou  \textit{Translation Look-aside Buffer} maintient une liste des pages de mémoire les plus utilisées et de leurs adresses. La manipulation des données de ces pages est plus rapide.
+
+	\subsection{Associativité des caches}
+	
+	(Pour information) Pages 36 et 37.
+
+	\subsection{Loop tiling}
+
+(Pour information)
+Le principe est de découper une ou plusieurs boucles pour avoir du \textit{cache blocking}.
+	
+	\subsection{Etude de cas : produit matrice-vecteur}
+	
+Soit le produit matrice vecteur:
+\begin{equation}
+\forall i,j : y_i \leftarrow y_i a_{i j} x_j
+\end{equation}
+
+On a $2n^2$ opérations sur $n^2 + 2n$ éléments, on a donc un taux de réutilisation $\bigo(1)$.
+
+On réutilise uniquement les éléments des vecteurs $x$ et $y$, on peut exploiter cela.
+\begin{verbatim}
+/* variant 1 */
+for (i)
+    for (j)
+        y[i] = y[i] + a[i][j] * x[j];
+\end{verbatim}
+
+On a une écriture mémoire de $y[i]$ à chaque itération, il faut utiliser un accumulateur:
+
+\begin{verbatim}
+/* variant 2 */
+for (i) {
+    s = 0;
+    for (j)
+        s = s + a[i][j] * x[j];
+    y[i] = s;
+}
+\end{verbatim}
+
+Si la cache est trop petite pour contenir le vecteur $x$ et une colonne de $a$, la cache sera continuellement rechargée.
+On peut inverser les boucles:
+
+\begin{verbatim}
+/* variant 3 */
+for (j) {
+    t = x[j];
+    for (i)
+        y[i] = y[i] + a[i][j] * t;
+}
+\end{verbatim}
+On réutilise $x$, mais plus $y$.
+
+On peut réutiliser les deux en utilisant le \textit{déroulage de boucle} (loop unrolling) avec un facteur déterminé par le nombre de registres disponibles.
+
+\begin{verbatim}
+for (i=0; i<M; i+=2) {
+    s1 = s2 = 0;
+    for (j) {
+        s1 = s1 + a[i][j] * x[j];
+        s2 = s2 + a[i+1][j] * x[j];
+    }
+    y[i] = s1; y[i+1] = s2;
+}
+\end{verbatim}
+
+	\subsection{Stratégies d'optimisation}
+
+\dessin{chapter1/optimization}
+
+On constate l'efficacité des version optimisées par rapport aux versions naïves. Néanmoins, les versions optimisées sont difficiles à concevoir, et dépendent généralement de l'architecture de l'ordinateur qui exécute le code.
+
+On fait les observations suivantes:
+\begin{itemize}
+\item l'optimisation d'un compilateur est très loin des performances optimales.
+\item il existe des projets de générations automatique de code optimisé par architectures.
+\end{itemize}
+	
+	\subsection{Programmer en tenant compte du cache}
+	
+Le programmeur ne peut pas gérer explicitement les caches, mais il peut programmer de manière \textit{cache aware}.
+
+On peut supposer que si les données utilisées sont moins grandes que la taille de la cache, les données ne seront chargées qu'une fois puis réutilisées. Si elles sont plus grandes que la cache, elles seront rechargées à chaque fois.
+
+On va vérifier cela avec le code suivant:
+\begin{verbatim}
+for (x=0; x<NX; x++)
+    for (i=0; i<N; i++)
+        a[i] = sqrt(a[i]);
+\end{verbatim}
+Ce code prendrait un temps $\bigo(N)$ jusqu'à ce que $a$ remplisse la cache. On peut calculer le temps normalisé par exécution:
+\begin{verbatim}
+t = time();
+for (x=0; x<NX; x++)
+    for (i=0; i<N; i++)
+        a[i] = sqrt(a[i]);
+t = time()-t;
+t_normalized = t/(N*NX);
+\end{verbatim}
+$t\_normalized$ sera constant jusqu'à ce que $a$ remplisse la cache, puis il va augmenter et ses performances seront déterminées par les caractéristiques de la cache L2. Si on augmente encore, on va parcourir toutes les caches pour finir dans la mémoire centrale.
+
+\section{Consommation électrique}
+
+Dans la consommation électrique des ordinateurs à hautes performances, il faut distinguer la consommation d'un simple processeur et celle du \textit{cluster} entier. Si le nombre de composants augmente, la consommation augmente. Heureusement, la miniaturisation des puces diminue cette consommation. 
+
+Soit $\lambda$ l'épaisseur des fils est diminuée à $s\lambda$, avec $s < 1$, pour avoir le champ électrique des transistors constants,  il faut diminuer la largeur du canal, l'épaisseur d'oxyde, la densité de concentration du substrat et la tension de fonctionnement d'un même facteur. C'est le \textit{constant field scaling}.
+
+Le résultat est que la consommation électrique dynamique $P$ devient $s^2 P$, le délai du circuit $T$ devient $sT$ et la fréquence $F$ devient $\frac{F}{s}$.  La consommation d'énergie diminue alors d'un facteur $s^3$.
+
+La technologie a atteint ses limites, la fréquence ne peut plus être augmentée, et on est proche du maximum de miniaturisation possible. La seule façon d'améliorer les performances est de coder de façon parallèle et d'augmenter le nombre de processeurs. Cela augmente beaucoup la consommation électrique.
+
+Ce graphique montre la densité électrique si on avait gardé un noyau unique en augmentant la fréquence.
+
+\dessin{chapter1/electric}
+
+

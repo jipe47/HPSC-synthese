@@ -1,0 +1,396 @@
+\chapter{Calcul parallèle}
+
+\section{Introduction}
+Les plus gros et les plus puissants ordinateurs sont souvent appelés "super-ordinateurs". On parle, à ce moment-là, d'ordinateurs parallèles: des machines qui contiennent plus qu'un CPU qui peuvent travailler sur un même problème.
+
+Dans les codes scientifiques, il y a souvent une grande quantité de travail à produire et il est souvent question d'effectuer une même opération sur plusieurs données. La question est donc de savoir s'il est possible d'accélérer ce travail grâce aux ordinateurs parallèles. Si nous avons $n$ opérations à faire et qu'elles prennent un temps $t$ sur un seul processeur, peut-on affirmer que cela prendra un temps $\frac{t}{p}$ sur $p$ processeurs?\\
+
+[Exemples page 45-46]\\
+
+
+Nous remarquons que 
+\begin{itemize}
+\item Parfois certains algorithmes ont besoin d'être légèrement modifiés pour les rendre parallèles.
+\item Un algorithme parallèle peut ne pas montrer un réel "speedup".
+\end{itemize}
+Une certaine adaptation, efficacité et communication sont donc parfois de mise pour toutes les résolutions de problèmes parallèles.
+
+ 
+\section{Architectures d'ordinateurs parallèles}
+	Les ordinateurs parallèles contiennent une architecture qui permet l'exécution simultanée de plusieurs instructions ou de séquences d'instructions. Une manière de caractériser les différentes formes de parallélisation est la taxonomie de Flynn. Celle-ci fait une distinction entre le fait qu'une ou plusieurs instructions sont effectuées simultanément et le fait qu'elle(s) travaille(nt) sur un ou plusieurs éléments de données. Voici les quatre types que l'on peut distinguer:
+	
+	\begin{itemize}
+	\item \textbf{SISD} Single Instruction Single Data: ce type correspond à l'architecture CPU traditionnelle: à chaque moment, une seule instruction est exécutée, opérant sur un seul élément de donnée.
+	\item \textbf{SIMD} Single Instruction Multiple Data: dans ce type d'ordinateurs, il peut y avoir plusieurs processeurs, chacun opérant sur leur propre morceau de données sur lequel ils exécutent tous la même instruction. Les ordinateurs vectoriels (section 2.2.1.1) sont caractérisés comme SIMD.
+	\item \textbf{MISD} Multiple Instruction Single Data: Aucune architecture qui répond à cette description n'existe.
+	\item \textbf{MIMD} Multiple Instruction Multiple Data: plusieurs CPUs travaillent sur plusieurs éléments de données, chaucun exécutant des instructions indépendantes. La plupart des ordinateurs parallèles sont de ce type.
+	\end{itemize}
+
+	\subsection{SIMD}
+	Les ordinateurs parallèles de type SIMD appliquent la même opération simultanément à plusieurs éléments de données. L'architecture des CPUs de tel ordinateurs peut être très simple puisque l'unité arithmétique n'a pas besoin de séparer les unités logique et de décodage d'instructions: tout les CPUs exécutent la même opération dans un "lock step". Cela fait que les ordinateurs SIMD sont très performants sur les opérations dans des tableaux telles que 
+\begin{verbatim}
+for(i=0; i<N; i++)
+  a[i] = b[i]+c[i];	
+\end{verbatim}}
+et pour cette raison, ils sont souvent appelés "array processors". La plupart du temps, les codes scientifiques peuvent être écrits en utilisant des opérations sur des tableaux. Mais parfois certaines opérations ne peuvent pas être implémentées de manière efficace grâce à des opérations sur des tableaux. Par exemple, évaluer un nombre de terme de la récurrence $x_{i+1} = ax_{i}+b_{i}$ implique des additions et des multiplications, de manière alternée, de sorte que seulement une seule opération de chaque type ne peut être calculée en une seule fois. Ici, il n'y a pas de tableaux de nombres qui peuvent être simultanément en entrée d'une addition ou d'une multiplication.\\
+	
+	Les "super-ordinateurs" basés sur du traitement de tableaux n'existent plus, mais la notion de SIMD vit toujours à travers divers variantes telles le pipelining dans les CPUs modernes ou les GPUs.
+
+	\subsection{MIMD/SPMD}
+	L'architecture d'ordinateur parallèle de loin la plus répandue est appelée "Multiple Instruction Multiple Data" (MIMD) : le processeur exécute de multiples, et parfois différentes, instructions, chacune sur leur propres morceaux de données. Cela ne veut pas dire pour autant qu'ils font tous tourner des programmes différents: la plupart de ces machines travaillent dans un mode "Single Program Multiple Data" (SPMD), où le programmeur lance le même exécutable sur des processeurs parallèles.
+	
+	Puisque les différentes instances de l'exécution peuvent prendre différents chemins à travers les instructions conditionnelles, ou exécuter un nombre différent de boucle, ils peuvent ne pas être totalement synchronisés tel qu'ils le seraient sur des machines SIMD. Si ce manque de synchronisation est dû au fait que les processeurs travaillent sur une quantité différente de données, on parle alors de "load unbalance". C'est à cause de cela qu'on ne parvient pas à un parfait speedup.
+	
+	Il existe une grande variété de machines MIMD: ce type de parallélisation peut se faire tant au niveau hardware qu'au niveau software. Les machines supportant le modèle SPDM sont habituellement appelées "clusters".
+	 
+\section{Types d'accès mémoire}
+La plupart des processeurs sont considérablement plus rapides que leur accès mémoire. Pour les machines parallèles, où potentiellement plusieurs processeurs veulent avoir accès à la même adresse mémoire, ce problème peut devenir bien pire. Nous pouvons caractériser les machines parallèles par l'approche qu'elles utilisent pour résoudre ce problème de réconciliation d'accès multiples de plusieurs processus sur une même source de données.
+
+	\subsection{Accès mémoire uniforme}
+	Chaque adresse mémoire est accessible à tous les processeurs et ce, en un temps constant pour tous. On appelle cela une accès mémoire uniforme (AMU) et le modèle de programmation pour ce type d'architecture est souvent appelé Multi-Traitement Symetrique (MTS). Les ordinateurs de bureau d'aujourd'hui peuvent avoir plusieurs processeurs qui accèdent à une mémoire partagée à travers un seul bus mémoire. Ce système ne fonctionne qu'avec un petit nombre de processeurs. Pour un nombre plus large de processeurs, on utilise un système de "crossbar" qui connecte plusieurs processeurs à plusieurs banques de mémoire.
+	
+	Il existe un type d'accès mémoire uniforme différent pour les processeurs multicoeurs: les coeurs ont typiquement une cache partagée, la cache L3 ou L2.
+	
+	\subsection{Accès mémoire non uniforme}
+	L'approche AMU est malheureusement limitée à un petit nombre de processeurs. Une autre stratégie serait d'utiliser une mémoire physiquement distribuée, abandonnant un temps d'accès uniforme mais en maintenant un espace d'adresses logiquement partagé: chaque processeur peut toujours avoir accès à n'importe quelle adresse mémoire. On appelle cette stratégie l'Accès Mémoire Non-Uniforme (AMNU). Nous nous trouvons donc dans une situation où un processeur a un accès très rapide à sa propre mémoire mais un accès plus lent aux mémoires des autres processeurs.
+	
+	\dessin{chapter2/1}
+	
+	La figure ci-dessus illustre un exemple avec une carte de mère de quatre sockets. Chaque puce possède sa propre mémoire (8Gb) mais la carte mère agit comme si le processeur avait accès à une réserve de 32Gb de mémoire. On remarque que chaque processeur possède trois connexions qui peuvent être utilisées pour accéder aux autres mémoires mais les deux puces de droite en utilisent une pour être connectées au réseau. Cela veut dire qu'elles doivent nécessairement passer par un processeur intermédiaire pour accéder à la mémoire de l'autre, ce qui ralentit les transferts et occupe plus de bande-passante mémoire.
+	
+	Alors que l'approche AMNU est favorable au programmeur, cette dernière soulèvent quelques défis pour le système. Imaginons que deux processeurs ont chacun une copie d'une adresse mémoire dans leur mémoire cache. Si l'un des processeurs modifie sa copie, il va devoir propager ce changement à travers les autres processeurs. Si les deux puces tentent de modifier chacune leur copie d'une même adresse mémoire, le comportement du programme peut devenir indéterminé.
+	
+	La cohérence de cache consiste à garder des copies d'adresse mémoire synchronisées. Les système multi-processeur qui utilise ce principe ont une architecture "cache-cohérent AMNU" ou ccAMNU. Garder une cohérence de cache est bien entendu désirable puisque cela facilite la programmation parallèle. Cependant, cela amène un certain coût sur plusieurs niveaux. Il faut pouvoir gérer cela à travers un support hardware au niveau des processeurs et du réseau. De plus, cette contrainte implique des échanges de données supplémentaires à travers le réseau, utilisant de la bande-passante toujours trop précieuse.
+	
+	\subsection{Mémoire distribuée logique et physique}
+	La solution la plus extrême à ce problème d'accès mémoire est d'offrir de la mémoire qui n'est pas seulement physiquement mais aussi logiquement distribuée: les processeurs ont leur propre espace mémoire et ils ne peuvent pas voir directement la mémoire des autres puces. Cette approche est souvent appelée "Mémoire Distribuée" mais ce terme est mal choisi puisque nous devons considérer séparément la question de savoir si la mémoire est réellement distribuée ou si elle apparaît comme distribuée. 
+	
+	Avec une mémoire logiquement distribuée, la seule façon pour un processeur d'échanger de l'information avec un autre est de passer l'information de manière explicite à travers le réseau. Ce type d'architecture a l'avantage de bien fonctionner avec une large nombre de processeurs.
+	
+	\subsection{Latence}
+	La communication entre les processeurs est naturellement lente, plus lente que le transfert de données d'une mémoire sur un seul processeur et encore plus lente que le traitement sur les données. Pour cette raison, il est nécessaire de minimiser les communications entre processeurs et de privilégier les échanges qui sont vraiment utiles lorsqu'on conçoit un programme parallèle. Il doit y avoir assez de travail par processeur pour rentabiliser la (lente) communication.
+	
+	Une autre façon de copier les données avec cette lente communication est d'arranger le programme pour que la communication s'effectue lorsque certaines opérations sont en cours. On appelle cela un chevauchement calcul-communication.
+	
+	
+	[Exemple p53]
+	
+\section{Granularité du parallélisme}
+La question est de savoir "à quel point l'exécution d'un programme est-elle parallèle?". C'est une question théorique à propos du nombre maximum absolu d'actions qui peuvent être mises en parallèles. Il faut aussi se demander quel est le type de ces actions et quelle est la difficulté de rendre le programme parallèle, afin que le résultat de l'exécution soit aussi efficace que possible.
+	
+	\subsection{Parallélisme des données}
+	Il est tout à fait commun qu'un programme contienne des boucles avec de simples instructions, qui seront exécutées pour tous les éléments d'un plus large ensemble de données:
+\begin{verbatim}
+for(i=0; i<1000000; i++)
+  a[i] = 2*b[i];	
+\end{verbatim}
+	
+	Un tel code est considéré comme une instance de parallélisme de données (ou parallélisme à grain fin). Si on a autant de processeurs que d'éléments dans le tableau, le code se réduira à ce que chaque processeur exécute l'instruction
+\begin{verbatim}
+a = 2*b;	
+\end{verbatim}
+	sur ses propres données locales.
+	
+	Si un code consiste surtout à ce genre de boucle sur des tableaux, il peut être exécuté de manière efficace avec tous les processeurs travaillant pas par pas (lockstep). De telles opérations totalement parallèles sur des tableaux apparaissent dans les processeurs graphiques, où chaque bit d'une image est traité indépendamment des autres. Pour cette raison, les GPUs sont fortement basés sur le parallélisme de données.
+	
+	\subsection{Parallélisme au niveau des instructions}
+	Dans le parallélisme au niveau des instructions, il est toujours question de travailler sur des instructions individuelles mais il n'est pas nécessaire qu'elles soient similaires. Par exemple,
+\begin{verbatim}
+a <- b + c
+d <- e + f	
+\end{verbatim}
+	les deux affectations sont indépendantes et peuvent tout de même être exécutées de manière simultanée. Ce type de parallélisme est parfois trop gênant à identifier pour l'homme mais les compilateurs s'en sortent très bien. En fait, identifier ce genre de parallélisme est crucial pour obtenir de bonnes performances des CPUs super-scalaire modernes.
+	
+	\subsection{Parallélisme au niveau des tâches}
+	Totalement à l'opposé du parallélisme précédent, le parallélisme au niveau des tâches consiste à identifier tout sous-programme qui peut être exécuté en parallèle. Par exemple, une recherche dans une structure de données en forme d'arbre pourrait être implémentée comme suit: 
+	\begin{algorithmic}
+	\IF{optimal(root)}
+		\STATE exit 
+	\ELSE
+		\STATE parallel: SearchInTree(leftchild), SearchInTree(rightchild)
+	\ENDIF
+	\end{algorithmic}
+	
+	La tâche de recherche dans cet exemple n'est pas synchronisée et le nombre de tâche n'est pas fixe: il peut grandir de manière arbitraire. En pratique, avoir trop de tâches n'est pas une bonne idée, puisque les processeurs sont plus efficaces s'ils travaillent sur une seule tâche. Ce mode de parallélisme convient plus pour une programmation en threads, comme pour la librairie OpenMP.
+	
+	Voici un exemple plus concret de ce type de parallélisme. Un élément-maille fini est, dans le cas le plus simple, une collection de triangles qui recouvrent un objet en 2D. Dans le but d'éviter des angles trop aiguës, le traitement d'affinement de maille de Delauney consiste à prendre certains triangles et à les remplacer par d'autres d'une meilleure forme. Comme on peut le voir sur la figure ci-dessous, les triangles noires violent certaines conditions d'angles. Ils sont donc divisés ou alors joints avec leur voisins (triangles gris) et sont ensuite redivisés.
+	
+	\dessinS{chapter2/2}{0.4}
+	
+	En pseudo-code, cet algorithme peut être implémenté comme suit:\\
+	
+	\begin{algorithmic}
+	\STATE Mesh m = /*read in inital mesh*/
+	\STATE Worklist wl;
+	\STATE wl.add(mesh.badTriangles());
+	\WHILE{wl.size() != 0}
+		\STATE Element e = wl.get(); //get bad triangle
+		\IF {e no longer in mesh}
+			\STATE continue;
+		\ENDIF
+		\STATE Cavity c = new Cavity(e);
+		\STATE c.expand();
+		\STATE c.retriangulate();
+		\STATE mesh.update(c);
+		\STATE wl.add(c.badTriangles());
+	\ENDWHILE  
+	\end{algorithmic}
+	
+	Il est clair que cet algorithme est guidé par une structure de données "worklist" qui doit être partagée entre tous les processeurs. Ensemble avec la distribution dynamique de données au processus, cela implique que ce type de parallélisme irrégulier convient bien à la programmation par mémoire partagée et est plus difficile à concevoir avec une mémoire distribuée.
+	
+	\subsection{Parameter sweeps}
+	Dans un certain contexte, un simple calcul, souvent sur un seul processeur, a besoin d'être effectué sur différentes entrées. Ordonnancer des calculs, comme dit ci-avant, est référé comme un paramètre balai. Lorsque les exécutions d'un programmes n'ont aucune dépendance de données et n'ont aucun besoin d'être effectuées dans une ordre particulier, nous avons affaire à un exemple de traitement parallèle embarrassant (embarassingly parallel computing).
+	
+	\subsection{Parallélisme de données medium-grain}
+	Dans les observations ci-dessus, nous avons supposés avoir à notre disposition autant de processeurs qu'il n'y a d'éléments de données. En pratique, les processeurs auront bien plus de mémoire que ça et le nombre d'éléments est probablement bien plus grand que le nombre de processeurs, même sur les plus gros ordinateurs. Ainsi, les tableaux sont groupés à l'intérieur des processeurs en sous-tableaux. Le code ressemble donc à ceci:
+\begin{verbatim}
+my_lower_bound = // some processor-dependent number
+my_upper_bound = // some processor-dependent number	
+for (i = my_lower_bound; i < my_upper_bound; i++)
+   //the loop body goes here	
+\end{verbatim}}
+	
+	Ce modèle possède certaines caractéristiques de parallélisme de données, dans le sens où les opérations effectuées sont identiques sur un large nombre d'éléments de données. Cela peut aussi être vu comme du parallélisme de tâche, puisque chaque processeur exécute une grande section de code et n'opère pas forcément sur des morceaux de données de même taille.
+	
+\section{Programmation parallèle}
+La programmation parallèle est plus difficile à mettre en oeuvre que la programmation séquentielle. Il y a plusieurs approches à celle-ci. La première chose est qu'il semble impossible de voir arriver un compilateur parallélisant, qui permettrait de transformer un programme séquentiel en programme parallèle. En plus du problème de savoir si des variables sont indépendantes ou non, le principal souci est de localiser les données dans un contexte parallèle. Ainsi le compilateur aurait besoin d'une vue d'ensemble sur l'entièreté du code.
+
+Une approche plus productive est de faire participer le programmeur et de lui demander de spécifier les routines qui doivent être parallélisées et de quelle manière les données doivent être partagées. Cette approche est utilisée par la librairie OpenMP et elle fonctionne très bien avec de la mémoire partagée.
+
+Un autre approche plus extrême, mais qui donne de meilleurs résultats, est de laisser le programmeur gérer tout explicitement. Cette approche est à pourvoir dans le cas d'une mémoire distribuée. Elle est utilisée par la librairie de MPI.
+
+ 
+	\subsection{Parallélisme de threads}
+	Un thread est un flux d'instructions indépendant. Alors qu'un processus peut appartenir à plusieurs utilisateurs, ou être différents programmes qu'un seul utilisateur fait tourner de manière concurrente, et qui plus est ont leur propre espace mémoire, les threads sont une partie d'un processus et peuvent donc se partager chacun leurs données. Ils peuvent aussi avoir leurs propres données (par exemple leur propre pile). Les threads ont deux utilités:
+	\begin{itemize}
+	\item Nous obtenons une meilleure utilisation du processeur lorsque des instructions d'un thread peuvent être effectuées pendant qu'un autre est en attente de données.
+	\item Dans un contexte de mémoire partagée, plusieurs threads tournant sur plusieurs processeurs ou plusieurs coeurs peuvent facilement permettre la parallélisation d'un processus. La mémoire partagée permet à tous les threads de voir les mêmes données (bien sûr cela peut mener à des problèmes, voir la suite).
+	\end{itemize}
+	
+	La mémoire partagée facilite la vie du programmeur puisque chaque processeur peut accéder à toutes les données. Cependant, cela peut mener à des problèmes de cohérence lorsque plusieurs processeurs veulent lire/écrire dans la même adresse mémoire. On peut éviter ces inconvénients par plusieurs méthodes:
+	\begin{itemize}
+	\item Section critique de code: une partie de code doit être entièrement exécutée par un thread avant qu'un autre ne puisse l'exécuter. OpenMP utilise ce type de mécanisme.
+	\item Opérations atomiques: on attend la mise à jour complète d'une variable avant d'y accéder. 
+	\item Sémaphore: ce mécanisme consiste à entourer une section critique d'une protection. Cette protection est implémentée sous la forme d'un entier.
+	\end{itemize}
+	
+	\subsection{OpenMP}
+	OpenMP n'est pas réellement un langage mais est plutôt une extension des langages de programmation C et Fortran. Son approche du parallélisme est basée sur l'exécution parallèle des boucles. C'est à l'utilisateur de spécifier les boucles qui peuvent être parallélisées et les variables qui peuvent être traitées de manière indépendante. OpenMP fonctionne seulement avec des threads sur de la mémoire partagée, à cause de sa nature dynamique et parce qu'aucune distribution de données n'est spécifiée. 
+	
+	OpenMP consiste principalement à ajouter des directives $\#pragma$ au dessus des boucles à paralléliser. Ces directives sont directement interprétées par le compilateur (par exemple, GCC).\\
+	
+	[Programme exemple 2.5.2.1 p62-63]
+	
+	\subsection{MPI}
+	Alors qu'OpenMP est une manière de programmer une mémoire partagée, MPI (Message Passing Interface) est une solution standard pour la programmation de mémoire distribuée. MPI utilise un mécanisme d'envoi et de réception de messages afin d'effectuer des échanges entre les différents processus. Les routines MPI peuvent être réparties dans les catégories suivantes:
+	\begin{itemize}
+	\item Gestion de processus: cela comporte l'appel à un environnement parallèle et à la mise à disposition d'un sous-ensembles de processus.
+	\item Communication point-à-point: ensemble d'appels dans lequel deux processus peuvent interagir. Cet ensemble comporte les différentes variantes des routines d'envoi et de réception.
+	\item Appels collectifs: dans ces routines, tous les processeurs (ou du moins un sous-ensemble spécifié) sont impliqués. Par exemple, les routines broadcast ou gather.\\
+	\end{itemize}
+	
+	
+	[Programme exemple 2.5.3.3 p66]\\
+	
+	
+	La plupart des problèmes qui se posent lorsqu'on utilise MPI se base sur les questions de gestion de buffer et de la sémantique de blocage. Ces problèmes sont dus au fait que les données ne devraient pas se trouver à deux endroits différents au même moment.
+	
+	Imaginons un processus 1 qui envoie des données à un processus 2. Une stratégie sûre serait pour le processeur 1 d'exécuter l'instruction d'envoi et d'attendre que le processus 2 réponde qu'il a bien reçu les données. Cela implique que le processus 1 se trouve dans un état d'attente. On parle alors de \textit{communication bloquante}. Cette situation peut mener à un état appelé \textit{deadlock} dans lequel deux processus s'attendent mutuellement.
+	
+	Une autre stratégie serait d'utiliser un buffer temporaire qui stockerait les données à envoyer. Le processus 1 peut dès lors continuer son travail. Il devra cependant vérifier si le buffer temporaire est prêt à être réutilisé ou non. Cette stratégie qui utilise un buffer temporaire est appelé \textit{communication non-bloquante}.
+	
+	Les opérations collectives permettent d'impliquer tous les processeurs dans une seule opération. Nous avons:
+	\begin{itemize}
+	\item \textbf{Reduce}: chaque processeur possèdent un élément de donnée et on peut être amené à combiner arithmétiquement ces éléments dans une addition, une multiplication ou autre. Le résultat peut alors être placé dans un seul processeur (ou dans tous avec la commande allreduce). 
+	\item  \textbf{Broadcast}: on propage l'élément de donnée d'un processeur à tous les autres.
+	\item  \textbf{Gather}: on rassemble tous les éléments de donnée de chaque processeur dans un tableau, sans pour autant effectuer d'opérations sur ceux-ci. Tous les éléments collectés peuvent être rassemblés dans un tableau alloué dans un processeur (ou dans tous avec la commande allgather). 
+	\item  \textbf{Scatter}: un processeur contient un tableau de données et on distribue un élément de ce tableau à chaque processeur.
+	\item  \textbf{All-to-all}: chaque processeur possède un tableau de données et on distribue tous les éléments à tous les processeurs.
+	\end{itemize}
+	
+	\subsection{Communication one-sided}
+	Il serait beaucoup plus aisé de pouvoir retirer des données d'un processeur ou à l'inverse d'en placer sans que cet autre processeur ne soit explicitement impliqué. Ce type de communication unilatéral est largement répandu et est incorporé dans les libraire MPI-2. La librairie \textit{Global Arrays} est un autre exemple de ce type de communication. Elle utilise des opération \textit{put} et \textit{get} sur des données de structure spécifique (des tableaux de produit cartésien). Ces opérations ne sont pas collectives.
+	
+	\subsection{Langages parallèles}
+	Il existe différentes approches à la programmation parallèle. Ainsi, certains langages ont été conçus afin d'offrir un support explicit au parallélisme. Voici quelques unes de ces approches:
+	\begin{itemize}
+	\item Certains langages reflètent le fait que de nombreuses opérations dans les calculs scientifique sont parallèles au niveau des données. Exemples de langage: \textit{High Performance Fortran} (HPF) ou encore \textit{Chapel}.
+	\item Un autre concept de langage parallèle est basé sur le modèle \textit{d'Espace d'Adresse Global Partitionnée (Partitioned Global Address Space)}: il n'y a qu'une seule adresse mémoire mais celle-ci est partitionnée et chaque partition possède une affinité avec un thread ou un processeur. Ce modèle comprend SMP et la mémoire partagée distribuée. Exemple de langage: \textit{Unified Parallel C (UPC)}.
+	\end{itemize}
+	
+	Les langages parallèles ont pour but de rendre la programmation parallèle plus aisée en transformant les opérations de communication en simples opérations de copie ou d'arithmétique. Cependant, cela peut amener le programmeur à écrire du code qui pourrait ne pas être efficace, par exemple en utilisant beaucoup de petits messages.
+	
+		\subsubsection{Unified Parallel C} 
+		L'UPC est une extension du langage C. Sa principale source de parallélisme est du parallélisme de données, où le compilateur doit découvrir l'indépendance des opérations dans des tableaux et ensuite les assigner à différents processeurs. Le langage possède une extension de déclaration de tableau, qui permet à l'utilisateur de spécifier si le tableau est partitionné par bloc ou en un modèle \textit{round-robin}.
+	
+		\subsubsection{Titanium} 
+		Titanium est comparable à UPC mais est basé sur le langage de programmation Java.
+	
+		\subsubsection{High Performance Fortran} 
+		HPF est une extension du langage Fortran 90 auquel on a ajouté un support de calcul parallèle. Construit sur la syntaxe de tableau introduite dans le Fortran 90, HPF utilise un modèle parallèle de calcul de données qui supporte la distribution du traitement d'un seul tableau à travers plusieurs processeurs. HPF permet une implémentation efficace de SIMD et MIMD.
+	
+		\subsubsection{Co-array Fortran} 
+		CAF est une extension du langage Fortran 95/2003. Le principal mécanisme pour supporter le parallélisme est une extension de la syntaxe de déclaration de tableau, où une dimension supplémentaire indique la distribution parallèle.
+
+		\subsubsection{Chapel}
+		Chapel est un nouveau langage de programmation parallèle. Il a été conçu pour améliorer la productivité des utilisateurs plus expérimentés puisque Chapel est un modèle de programmation parallèle portable qui peut être utilisé sur des clusters à la portée de tous ou encore sur des ordinateurs de bureaux multi-coeurs.
+		
+		Chapel supporte un modèle d'exécution multi-threads via une abstraction haut niveau pour le parallélisme de données, de tâches, de concurrence et de parallélisme \textit{nested} (niché?). Le type local de Chapel permet à l'utilisateur de spécifier et de raisonner à propos du placement des données et des tâches dans une architecture ciblée afin de personnaliser les emplacements.
+		
+		Chapel comprend aussi des implémentations définies par l'utilisateur, permettant des opérations sur des structures de données distribuées pour être exprimées de manière plus naturelle. Enfin Chapel est conçu autour d'une philosophie multi-résolution, permettant à l'utilisateur d'initialement écrire un code très abstrait et ensuite, petit à petit, ajouter plus de détails jusqu'à se rapprocher de la fonction souhaitée.
+	
+		\subsubsection{Fortress} 
+		Fortress est un langage de programmation qui a pour but de rendre le parallélisme plus facilement détectable de plusieurs façons. Le langage est conçu pour le parallélisme: il pousse la conception d'outils et de librairies, ainsi que les compétences du programmeur en direction du parallélisme.
+		
+		De plus, il est conçu pour être plus amicale au parallélisme: ainsi les effets secondaires sont mis de côté. Fortress fournit des transactions afin que le programmeur n'ait pas à faire face au problème de déterminer l'ordre des verrous, ou encore le réglage de leur section critique afin que le code se comporte correctement, tout cela sans que les performances en pâtissent.
+		
+		A la place que ce soit la boucle qui spécifie comment les données doivent être accédées, c'est la structure de données qui spécifie comment la boucle doit s'exécuter. Des structures de données ont été conçues pour séparer en grande partie ce qui peut être organisé en exécutions parallèles. La syntaxe de Fortress a été conçue pour coïncider le plus possible à la syntaxe mathématique afin de rendre plus aisée la résolution d'un problème mathématique par le biais de la programmation parallèle.
+ 
+		\subsubsection{X10} 
+		X10 est un langage de programmation expérimental qui est toujours en développement par IBM et des collaborateurs académiques. X10 a pour but de contribuer à l'amélioration de la productivité en développant un nouveau modèle de programmation, combiné avec un nouvel ensemble d'outils intégré dans Eclipse et de nouvelles techniques d'implémentation afin d'obtenir un parallélisme optimisé et extensible. X10 est un langage parallèle distribué orienté-objet qui est facilement accessible au programmeur Java.
+	
+		\subsubsection{Linda}
+		Linda n'est pas un langage de programmation en soi mais peut être incorporé à l'intérieur d'autre langage. Le système de programmation Linda a été conçu pour adresser explicitement la gestion des données.
+		
+		Le concept basique de Linda est un espace de tuple: les données sont ajoutées à un ensemble d'informations globalement accessibles par une référence à un label. Les processus retrouvent et retirent les données grâce à leur label et cela sans le besoin de savoir quel processus a ajouté les données à l'espace de tuple
+		
+		 Linda répond au besoin de communication asynchrone entre les processus. Linda est donc un bon moyen d'implémenter \textit{la communication unilatérale}.
+	
+	\subsection{Approche basée sur les OS}
+	Il est possible de concevoir une architecture avec un espace d'adresses partagées et de laisser la gestion des mouvements de données au système d'exploitation. On aurait une architecture où aucun donnée n'est associée à aucun processeur. A la place, toutes les données sont considérées comme faisant partie de la cache d'un processeur et se déplacent sur demande à travers le réseau, un peu comme les mouvements de la mémoire principale vers la mémoire cache dans les CPUs traditionnels. 
+		
+	\subsection{Messages actifs}
+	Si le problème devient plus compliqué, l'orchestration des mouvements de données en MPI peut devenir très complexe due aux nombreuses opérations de \textit{send} et de \textit{receive}.
+	
+	Afin de simplifier tout cela, on va introduire des messages actifs: un processeur peut envoyer des données à un autre sans que ce dernier n'ait à faire une opération de réception explicite. Le récepteur implémente une méthode qui gère l'arrivée de données et le processeur qui envoie doit l'appeler avec les données qu'il souhaite envoyer. Puisque ce dernier active du code sur un autre processeur, on appelle ça une invocation de méthode à distance (\textit{remote method invocation}). Un gros avantage de cette méthode est que l'imbrication de communication et de traitement devient plus facile à réaliser.
+	
+\section{Efficacité du calcul parallèle}
+
+Il y a deux grandes raisons à l'utilisation d'ordinateurs parallèles: avoir accès à plus de mémoire ou obtenir de plus hautes performances. Il est facile d'évaluer le gain de mémoire, par contre il est moins aisé de caractériser le gain de vitesse obtenu grâce à la parallélisation.
+
+	\subsection{Définitions}
+	Une approche simple pour définir le \textit{speedup} est de faire tourner un même programme sur un seul processeur et sur une machine parallèle avec $p$ processeurs. Ensuite il suffit de comparer les temps d'exécution. Soit $T_1$ le temps d'exécution sur un seul processeur et $T_p$ sur \textit{P} processeurs, nous définissons le speedup par $S_p = \frac{T_1}{T_p}$. Dans une situation idéale, $T_p = \frac{T_1}{p}$ mais en pratique nous n'obtenons pas cela, donc $S_p \leq p$. Pour mesurer la distance par rapport à un speedup idéal, nous posons l'efficacité $E_p = \frac{S_p}{p}$ avec $0 < E_p < 1$.
+	
+	Il apparaît certains problèmes avec cette définition: un problème qui peut être résolu sur des machines parallèles peut ne pas s'adapter à un seul processeur. Inversement, un problème qui peut être résolu sur un seul processeur peut très bien donner des résultats totalement faux lorsqu'on le distribue sur plusieurs processeurs.
+	
+	Il y a plusieurs raisons pour lesquels le véritable speedup est plus petit que $p$. Tout d'abord, avec plusieurs processeurs s'ajoute le problème de la communication entre eux. Cette communication est une importante source de perte d'efficacité et ce problème n'a pas lieu d'être avec un seul processeur. De plus, si les processeurs n'ont pas exactement le même travail à effectuer, certains d'entre eux pourraient rester sans rien faire (\textit{load unbalance}). Finalement, certaines sections de codes peuvent parfois n'être traitées que séquentiellement.
+	
+	On parle de speedup \textit{super-linéaire} lorsque celui-ci est plus grand que le nombre de processeurs. Théoriquement, il ne peut jamais se produire mais c'est possible en pratique.
+	
+	\subsection{Asymptotes}
+	Certaines questions à propos de la limite du calcul parallèle peuvent se poser:
+	\begin{itemize}
+	\item Si nous avons un nombre infini de processeur, quelle serait la complexité en temps la plus petite d'un certain algorithme?
+	\item Existe-t-il des algorithmes plus rapides que ceux qui ont une efficacité en $\bigo (1)$?
+	\end{itemize}
+	Une première objection à ce type de limites théoriques est qu'elles assument implicitement une certaine forme de mémoire partagée (\textit{Parallel Random Access Machine}), où chaque adresse mémoire est accessible par n'importe quel processeur. De plus, il serait possible d'accéder à la même adresse mémoire en même temps, ce qui n'est pas réaliste en pratique.
+	
+	Il faut aussi prendre en compte la distance entre chaque processeur: si les processeurs sont connectés par un tableau linéaire, le nombre de "sauts" entre les processeurs actifs double et donc aussi, de manière asymptotique, le temps de calcul de chaque itération de l'algorithme.
+	
+	On peut prouver que, dans notre monde en trois dimensions et avec la vitesse finie de la lumière, le speedup est limité par $\sqrt[4]{n}$ pour un problème sur \textit{n} processeurs, quelles que soient les interconnexions entre eux.
+	
+	\subsection{Loi d'Amdahl}
+	Comme dit plus haut, une des raisons de ce speedup imparfait est que certaines parties de codes sont séquentielles de manière inhérente. Supposons que 5\% de notre code est séquentiel et que donc le temps d'exécution de cette partie ne peut être réduit quel que soit le nombre de processeurs. Alors, le speedup pour cette partie de code est limité à un facteur de 20. Ce phénomène s'appelle la loi d'Amdahl.
+	
+	Soit $F_s$ la fraction de code séquentiel et $F_p$ la fraction parallèle, alors $F_s + F_p = 1$. Le temps de l'exécution parallèle $T_p$ sur $p$ processeurs est la somme de la partie séquentielle $T_1F_s$ et la partie parallélisable $T_1\frac{F_p}{p}$:\\
+	
+	$$T_{p} = T_{1}(F_{s} + \frac{F_{p}}{p})$$
+	
+	Lorsque le nombre de processeur $p$ tend vers l'infini, le temps de l'exécution parallèle approche fortement celui de la partie séquentielle du code: $T_p \downarrow T_1F_s$. On peut conclure que le speedup est limité par $S_p \leq \frac{1}{F_s}$ et l'efficacité est une fonction décroissante $E \sim \frac{1}{p}$.
+	
+	Il existe des variantes de la loi d'Amdahl: loi d'Amdahl avec un surplus de communication, la loi de Gustafson et la loi d'Amdalh et la programmation hybride (un mélange entre mémoire partagée et mémoire distribuée).
+	
+	Une autre formulation de la loi d'Amdahl (notes et 2.3.3 de "Parallel Scientific Computing in C++ and MPI") est la suivante : soit $\xi$ le pourcentage de code d'un programme qui ne peut pas être parallélisé, le reste ($1 - \xi$) pouvant l'être. En négligeant les délais de communication, le modèle d'Amdahl pour le speedup dit que
+	
+	$$S_p = \frac{T_1}{T_1 (\xi + \frac{1 - \xi}{p})} = \frac{1}{\xi + \frac{1 - \xi}{p}}$$
+	
+	\dessinS{chapter2/4}{.74}
+	
+	Si $p \rightarrow + \infty$, $S_p \leq \frac{1}{\xi}$.
+	
+	Cette loi est à prendre avec précaution : les programmes parallèles sont privilégiés (même s'ils sont naïfs et inefficaces). De plus, $\xi$ est posé constant, or le nombre de processeurs peut le faire diminuer (par exemple, avec le calcul des bords de boucles).
+	
+	Parfois, $S_p > p$, on a un speedup super linéaire, à cause/grâce à la cache du processeur.
+		
+	\subsection{Scalabilité}
+	Nous avons donc pu remarquer que séparer un problème à travers de plus en plus de processeurs n'a pas vraiment de sens: à un certain point, il n'y a plus assez de travail pour tous les processeurs pour que ceux-ci puissent opérer de manière efficace.
+	
+	En pratique, soit on choisit le nombre de processeur qui conviendrait le mieux à la résolution du problème, soit on doit résoudre une série de problèmes toujours plus grands en fonction du nombre grandissant de processeurs. Dans les deux cas, il est difficile de parler de speedup et donc le concept de \textit{scalabilité/adaptation} est utilisé.
+	
+	Il y a deux types d'adaptation. Tout d'abord, la \textit{forte adaptation (strong scalability)} est à peu de chose près le speedup discuté ci-dessus. On parle de forte adaptation lorsqu'un problème partitionné entre de plus en plus de processeurs montre un speedup parfait ou quasi-parfait.
+	
+	L'autre type est la \textit{faible adaptation (weak scalability)}. Elle décrit le fait que, soit un problème dont la taille et le nombre de processeur augmentent de telle sorte que la quantité de données par processeur reste constante, la vitesse des opérations par seconde de chaque processeur reste aussi constante. Cette mesure est souvent difficile à effectuer puisque la relation entre le nombre d'opérations et la quantité de données peut être très compliquée.
+	
+	Bien que dans le jargon de l'industrie le terme "adaptation" est souvent appliqué aux architectures, au sens stricte du terme, l'adaptation est une propriété d'un algorithme et sa façon de pouvoir être parallélisé dans une architecture, en particulier, la façon dont les données sont distribuées.
+	
+\section{Architectures multi-threadées}
+L'architecture moderne des CPUs est largement dictée par le fait qu'obtenir des données d'une mémoire est beaucoup plus lent que de les traiter. Ainsi, une hiérarchie toujours plus rapide et plus petite essaye de garder les données aussi proches de l'unité de traitement que possible, jouant avec la longue latence et la faible bande-passante de la mémoire principale. L'ILP (\textit{Instruction-Level Parallelism}) dans l'unité de traitement aide aussi à cacher la latence et utilise de manière plus efficace la bande-passante disponible. 
+
+Imaginons que nous transformons nos flux d'instructions parallèles en threads et que nous avons plusieurs threads qui peuvent être exécutés par notre unité de traitement. Lorsqu'un thread cale à cause d'une demande de mémoire en suspens, le processeur pourrait donner la main à un autre thread pour lequel toutes les ressources nécessaires sont déjà disponibles. C'est ce qu'on appelle du \textit{multi-threading}. Cette architecture permet donc garder la mémoire occupée de manière maximale.
+
+Le problème est que les CPUs ne sont pas efficaces assez pour des changements rapides de threads. Un changement de contexte (le fait de passer d'un thread à un autre) prend un grand nombre de cycles, c'est comparable à l'attente de données provenant de la mémoire principale. 
+
+Dans des architectures multi-threadées, un changement de contexte est tellement efficace qu'il peut s'effectuer en un seul cycle, ce qui rend possible pour un processeur de travailler sur plusieurs threads simultanément. Un bon exemple d'AMT est le GPU, où les processeurs travaillent comme des unités SIMD, alors qu'ils sont eux-mêmes multi-threadés.
+
+\section{Calcul sur GPU}
+Un GPU (\textit{Graphics Processing Unit}) est un processeur spécifiquement conçu pour le traitement rapide de données graphiques. Cependant, puisque les opérations effectuées sur des données graphiques sont de la forme d'opérations arithmétiques, les GPUs ont graduellement évolués vers une conception utile à des calculs non-graphiques.
+
+La conception générale des GPUs est basée sur le \textit{pipeline graphique}: les mêmes opérations sont exécutées sur de nombreux éléments de données dans une forme de \textit{parallélisme de données} et ce de manière simultanée sur plusieurs blocs de données (par exemple, des blocs de pixels).
+
+Tout comme pour les CPUs, l'accès à la mémoire engendre une longue latence. Les GPUs sont concernés par le débit de calcul, délivrant un large montant de données à des débits moyens élevés, plutôt que d'avoir un résultat aussi vite que possible. Ceci est rendu possible grâce aux différents threads et à un changement de contexte très rapide. Pendant qu'un thread attend ses données de la mémoire principale, un autre a déjà reçu les siennes qu'il peut commencer à traiter.
+
+Les GPUs d'aujourd'hui possèdent une architecture qui combine à la fois le parallélisme SIMD et SPMD. Les threads ne sont pas totalement indépendants: ils sont ordonnés en bloc de threads dans lesquels chaque threads effectue la même opération (SIMD). Il est aussi possible d'ordonnancer le même flux d'instructions sur plus d'un bloc de threads (SPMD). Puisqu'on parle de thread, la terminologie \textit{Single Instruction Multiple Thread} (SIMT) est utilisée.
+
+Par exemple, un GPU NVidia possède entre 16 et 30 \textit{Streaming Multiprocessors} (SMs) et un SM contient 8 \textit{Streaming Processors} (SPs), qui correspondent à des coeurs de processeurs. Les SPs agissent selon un modèle SIMD. Le nombre de coeurs dans un GPU est typiquement plus grand quand dans les traditionnels processeurs multi-coeurs, mais chaque coeur est plus limité.
+
+\dessinS{chapter2/3}{0.75}
+
+On définit un \textit{kernel}, une fonction qui sera exécutée sur le GPU et qui est initiée sur $mn$ coeurs, par la commande:
+\begin{verbatim}
+KernelProc<< m,n>>(args)
+\end{verbatim}}
+La collection de $mn$ coeurs exécutant le kernel est appelée la \textit{grille (grid)} et sa structure est composée de $m$ blocs de $n$ threads chacun.
+
+Les blocs dans un thread sont numérotés avec des coordonnées x,y et les threads dans un bloc sont numérotés avec des coordonnées x,y,z. Chaque thread connaît ses coordonnées dans le bloc et les coordonnées du bloc dans la grille. Les blocs de threads sont totalement parallèles sur les données.
+
+	\subsection{GPU vs CPU}
+	Il existe tout de même des différences entre les GPUs et les CPUs traditionnels:
+	\begin{itemize}
+	\item Les GPUs sont des processeurs attachés, donc n'importe quelle donnée sur laquelle ils opèrent doit être transférée du CPU. Puisque le débit de la mémoire principale est au moins 10 fois plus lent que les débits de mémoire dans le CPU, il faut suffisamment de travail à faire sur le GPU pour outrepasser ce surplus.
+	\item Les GPUs entraînent une emphase en simple précision en arithmétique à virgule flottante. Pour s'accommoder aux calculs scientifiques, un support à la double précision s'instaure petit à petit mais cela à un impact sur les débits (flop rate).
+	\item Un CPU est optimisé pour gérer un seul flux d'instructions, qui peut contenir des caractères très hétérogènes. Un GPU est fait explicitement pour le parallélisme de données et donc fonctionne mal sur du code traditionnel.
+	\item Un CPU est conçu pour gérer un seul ou au mieux un petit nombre de threads alors que le GPU a besoin d'un grand nombre de threads, bien plus grand que le nombre de coeurs de calculs, pour travailler de manière efficace.
+	\end{itemize}
+	
+	\subsection{Bénéfices attendus des GPUs}
+	Les GPUs ont rapidement gagné en réputation pour l'obtention de hautes performances. Mais ils ne sont pas pour autant le remède miracle aux calculs hautes performances.
+	
+	Tout d'abord, les GPUs ne sont bons dans ce domaine seulement parce que les opérations sont parallélisables facilement. Là où il n'y a pas de parallélisme, les GPUs ne valent pas grand chose. Cependant, sur les CPUs, les performances d'un code peuvent chuter drastiquement:
+\begin{itemize}
+\item Utilisation d'un seul coeur sur des processeurs multi-coeurs.
+\item Latence due à des instructions n'utilisant par les pipelines pour des opérations en virgule flottante. 
+\item Utilisation non simultanée de pipelines d'addition et de multiplication, alors que ceux-ci sont indépendants.
+\item Echec de l'utilisation de registres SIMD.
+\end{itemize}		
+
+Ecrire une implémentation optimale d'un kernel sur CPU demande souvent d'écrire en assembleur.
+	
+\section{Divers}
+	\subsection{Load balancing}
+	Une situation où un processeur est en train de travailler pendant qu'un autre ne fait rien est décrit comme \textit{load unbalance}: il n'y a pas de raison intrinsèque pour qu'un processeur soit inactif alors qu'il aurait pu avoir du travail si la distribution des tâches avait été différente.
+	
+	Il y a donc parfois une asymétrie entre les processeurs qui ont trop de travail et ceux qui n'en ont pas assez: il vaut mieux avoir un processeur qui finit sa tâche plus tôt qu'avoir un qui est surchargé de sorte que tous les autres l'attendent.
+	
+	Le \textit{load balancing} est donc le fait de répartir le plus efficacement possible la charge de travail à travers les différents processeurs et cela est souvent coûteux puisque ça requiert des mouvements de grandes quantités de données. 
+	
+	\subsection{Calcul distribué, grid computing et cloud computing}
+	Différentes applications du calcul parallèle. A lire pour information.
+	
+	[2.10.2 p100-102]
+	
+	\subsection{Capabilité vs capacité de calcul}
+	Les larges ordinateurs parallèles peuvent être utilisés de deux manières.
+	
+	Avec le besoin grandissant pour la précision et l'adaptation, il est nécessaire d'avoir des ordinateurs toujours plus puissants. L'utilisation de toute une machine pour la résolution d'un seul problème, avec seulement un temps vers une solution comme mesure de succès, est appelé la \textit{capabilité de calcul}.
+	
+	D'un autre côté, certains problèmes n'ont pas besoin de tout un super-ordinateur pour être résolus. Donc, un centre de calcul établira une machine afin qu'elle serve un flux continu de problèmes d'utilisateur, chacun plus petit que toute la machine. Dans ce mode, la mesure du succès est la performance maintenue de coût par unité. Ce mode est connu sous le nom de \textit{capacité de calcul} et requiert un travail de réglage plus fin sur la stratégie d'ordonnancement. 

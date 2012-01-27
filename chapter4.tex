@@ -1,0 +1,238 @@
+\chapter{Traitement numérique d'équations différentielles}
+
+On distingue plusieurs types d'équations :
+
+\begin{itemize}
+	\item ODE : Ordinary Differential Equation
+	\item PDE : Partial Differential Equation
+\end{itemize}
+
+De même, deux grands types de problème existent :
+
+\begin{itemize}
+	\item IVP : Initial Value Problems, rassemble les processus qui se déroulent dans le temps. On y considère les ODE, des fonctions scalaires qui dépendent du temps.
+	\item BVP : Boundary Value Problems, rassemble les processus qui se déroulent dans l'espace. Vu qu'on a de nombreuses variables spatiales, on considère les PDEs. Le "boundary" vient du fait que la solution est fixée sur le bord du domaine de définition, elle n'est pas inconnue.
+\end{itemize}
+
+L'équation de la chaleur est ainsi un problème de type IBVP.
+
+\section{Problèmes aux valeurs initiales}
+
+Par exemple, l'équation de Newton :
+
+$$F = ma \Leftrightarrow a = \frac{d^2}{dt^2}x = \frac{F}{m}$$
+
+Il s'agit d'une ODE (car c'est une fonction à une variable, le temps) de second ordre (car une dérivée seconde est impliquée). C'est un IVP car il y a des conditions initiales.
+
+Typiquement, la valeur initiale est donnée (en $t = 0$), et on est intéressé par le comportement à long terme ($t \rightarrow \infty$).
+
+Avec les méthodes numériques, on considère des étapes temporelles discrètes pour approximer la solution d'un processus continu dépendant du temps, ce qui introduit une erreur à chaque pas. La nécessité de minimiser cette erreur donne des restrictions sur le schéma numérique.
+
+	\subsection{Stabilité et erreur}
+	
+	On veut éviter les situations où une petite perturbation dans les valeurs initiales conduit à une large perturbation dans la solution.
+	
+	\begin{definition}
+		Une équation différentielle est stable si les solutions correspondant aux valeurs initiales convergent vers une autre, lorsque $t \rightarrow \infty$.
+	\end{definition}
+	
+	Soit une ODE dite "autonome"
+	
+	$$u'(t) = f(u(t))$$
+	
+	Un critère de stabilité suffisant est
+	
+	$$ \frac{\vartheta}{\vartheta u} f(u) = \left\{
+	\begin{array}{l}
+	> 0 \text{ instable} \\
+	= 0 \text{ stable (neutre)} \\
+	< 0 \text{ stable}
+\end{array}
+\right.$$
+	
+	Preuve : page 123.
+	
+	
+	\subsection{Approximation avec les différences finies}
+	
+		\subsubsection{Méthode d'Euler explicite}
+		Pour résoudre le problème, on discrétise les étapes spatiales et temporelles. On utilise pour cela le développement de Taylor :
+	
+		$$u(t + \Delta t) = u(t) + u'(t) \Delta t + u''(t) \frac{\Delta t^2}{2!} + u'''(t) \frac{\Delta t^3}{3!} + \dots$$
+	
+		On a alors pour $u'(t)$ :
+	
+		$$u'(t) = \frac{u(t + \Delta t) - u(t)}{\Delta t} + \bigo (\Delta t)$$
+	
+		On peut alors approximer une dérivée par une différence finie, avec une erreur qui est fonction du pas temporel. Si on remplace $u'$ par $f(t, u)$, on a
+		
+		$$\frac{u(t + \Delta t) - u(t)}{\Delta t} = f(t, u(t)) + \bigo (\Delta t)$$
+		$$\Leftrightarrow u(t + \Delta t) = u(t) + \Delta t f(t, u(t)) + \bigo (\Delta t^2 )$$
+		
+		Si on pose que $t_0 = 0$, $t_{k + 1} = t_k + \Delta t = (k + 1) \Delta t$ et $u(t_k) = u_k$, on a alors une équation aux différences :
+	
+		$$u_{k + 1} = u_k + \Delta t f(t_k, u_k)$$
+	
+		Cette forme est dite \textit{Euler explicite}.
+	
+		La discrétisation consiste à passer d'une équation différentielle à une équation aux différences, vu qu'on calcule des valeurs de la fonction dans un ensemble discret de points.
+	
+		Avec le développement de Taylor, on approxime un opérateur par un autre, on introduit une erreur de troncature de $\bigo (\Delta t)$.
+	
+		On va analyser l'erreur locale : si on a calculé une valeur exacte à l'étape $k$ ($u_k = u(t_k)$), quelle sera l'erreur à l'étape $k + 1$ ? On va pour cela soustraire à la forme d'Euler explicite le développement de Taylor :
+	
+		$$u(t_{k + 1}) = u(t_k) + f(t_k, u(t_k)) \Delta t + u''(t_k) + \frac{\Delta t^2}{2!} + \dots$$
+	
+		On obtient
+	
+	$$L_{k + 1} = u_{k + 1} - u(t_{k + 1}) = u_k - u(t_k) + f(t_k, u_k) - f(t_k, u(t_k)) - u''(t_k) \frac{\Delta t^2}{2!} + \dots$$
+	$$\Leftrightarrow L_{k + 1}= -u'' (t_k) \frac{\Delta t^2}{2!} + \dots $$
+	
+		L'erreur est $\bigo (\Delta t^2)$. Si on somme les erreurs locales pour obtenir l'erreur globale (en supposant qu'on peut le faire), on obtient
+	
+		$$E_k \approx \sum_k L_k = k \Delta t \frac{\Delta t^2}{2!} = \bigo (\Delta t)$$
+	
+		Cette méthode est dite du premier ordre car l'erreur est de l'ordre de $\Delta t$. Cette erreur mesure la distance entre la solution exacte et la solution calculée, c'est un ordre inférieur à l'erreur de troncature, qui est l'erreur faite en approximant l'opérateur.
+	
+		Certains schémas ont une stabilité qui dépend de la valeur de $\Delta t$ ; ils seront stables si $\Delta t$ est suffisamment petit, c'est pour cela qu'on dit que la méthode d'Euler explicite est \textit{conditionnellement stable}.
+	
+		A noter que la stabilité de l'équation différentielle n'est pas la stabilité du schéma numérique. Dans l'exemple de la page 125, le problème continu est stable si $\lambda > 0$, tandis que le schéma numérique a une condition supplémentaire, qui dépend du type de discrétisation utilisé.
+		
+		 \subsubsection{Méthode d'Euler implicite}
+		 
+		 Une méthode explicite est facile à calculer, mais sa stabilité conditionnelle est un problème potentiel.
+		 
+		 Au lieu de calculer le développement de $u(t + \Delta t)$, on va calculer celui de $u(t - \Delta t)$ :
+		 
+		 $$u(t - \Delta t) = u(t) - u'(t) \Delta t + u''(t) \frac{\Delta t^2}{2!} + \dots$$
+		 
+		 On a donc
+		 
+		 $$u'(t) = \frac{u(t) - u(t - \Delta t)}{\Delta t} + u''(t) \frac{\Delta t}{2!} + \dots$$
+		 
+		 
+		Comme avant, si on prend l'équation $u'(t) = f(t, u(t))$ et qu'on approxime $u'(t)$ par la formule 
+		
+		$$\frac{u(t) - u(t - \Delta t)}{\Delta t} = f(t, u(t)) + \bigo (\Delta t) \rightarrow u(t) = u(t - \Delta t) + \Delta t f(t, u(t)) + \bigo (\Delta t^2)$$
+		 
+		 
+		 On peut alors dériver la forme dite d'\textit{Euler implicite} :
+		 
+		 $$u_{k + 1} = u_k + \Delta t f(t_{k + 1}, u_{k + 1})$$
+		 
+		 La grosse différence avec le schéma explicite est que $u_{k + 1}$ apparaît à droite de l'équation, son calcul est maintenant implicite. Il est cependant nécessaire d'avoir recours à un moyen de résoudre une équation non linéaire.
+		 
+		 Le principal avantage d'une méthode implicite est qu'elle est inconditionnellement stable. Il est ainsi possible de prendre des grands pas temporels sans se soucier du comportement. Cela peut converger plus lentement, mais au moins cela ne diverge pas.
+		 
+		 D'un autre côté, les méthodes implicites sont plus compliquées, il est nécessaire de résoudre un système non linéaire à chaque étape temporelle. Dans les cas où $u$ est un vecteur (comme l'équation de la chaleur), il faudra trouver la solution d'un système d'équations.
+		 
+
+\section{Problèmes aux valeurs limites}
+
+Cette catégorie regroupe les problèmes qui arrivent à un état stationnaire dans le temps, mais qui décrivent un phénomène avec une dépendance locale.
+
+[pages 127 à 134]
+		 
+\section{Problèmes aux valeurs initiales et limites : équation de la chaleur}
+
+On va étudier la conduction thermique sur une barre. Soit $T(x, t)$ la température à un emplacement $x$ à un temps $t$, avec $x \in [a, b]$ et $t > 0$. L'équation est
+
+$$\frac{\vartheta}{\vartheta t} T(x, t) - \alpha \frac{\vartheta^2}{\vartheta x^2} T(x, t) = q(x, t)$$
+
+On a
+
+\begin{itemize}
+	\item une condition initiale : $T(x, 0) = T_0(x)$, la distribution de la température initiale,
+	\item les conditions de bord : $T(a, t) = T_a(t)$ et $T(b, t) = T_b(t)$,
+	\item un paramètre $\alpha$ pour le type de barre, et
+	\item une fonction $q(x, t)$ qui décrit une température appliquée.
+\end{itemize}
+
+Il y a une connexion entre les problèmes IBVP et les problèmes BVP : si les fonctions de bords $T_a$ et $T_b$ sont constantes et si $q$ ne dépend que de la localisation (et non du temps), $T$ va converger vers un état stable.
+
+	\subsection{Discrétisation}
+	
+	On va discrétiser le temps et l'espace, avec $x_{j + 1} = x_j + \Delta x$ et $t_{k + 1} = t_k + \Delta t$. On a alors $x_0 = a$, $x_n = b$ et $t_0 = 0$.
+	
+	Pour la discrétisation spatiale, on va utiliser la formule de la différence centrée :
+	
+	$$\frac{\vartheta^2}{\vartheta x^2}T(x, t_k) \vert_{x = t_k} \Rightarrow \frac{T_{j - 1}^k - 2T_j^k + T^k_{j + 1}}{\Delta x^2}$$
+	
+	Pour la discrétisation du temps, on peut utiliser un schéma explicite ou implicite.
+	
+		\subsubsection{Schéma explicite}
+		
+		On approxime la dérivée avec
+		
+		$$\frac{\vartheta}{\vartheta t} T(x_j, t) \vert_{t = t_k} \Rightarrow \frac{T_j^{k + 1} - T_j^k}{\Delta t}$$
+		
+		En injectant ce résultat dans la formule avec les différences centrées pour l'espace, on peut obtenir
+		
+		$$T^{k + 1}_j = T_j^k + \frac{\alpha \Delta t}{\Delta x^2}(T_{j - 1}^k - 2T_j^k + T^k_{j + 1}) + \Delta tq_j^k$$
+		
+		La valeur de la fonction en chaque point est une combinaison des points de l'étape temporelle précédente ; on a un stencil de la forme
+		
+		\dessin{chapter4/1}
+		
+		On peut résumer l'ensemble d'équations pour un certain $k$ et toutes les valeurs $j$ sous forme vectorielle :
+		
+		$$T^{k + 1} = (I - \frac{\alpha \Delta t}{\Delta x^2})T^k + \Delta t q^k$$
+		
+		
+		Le principal calcul sera un produit matrice-vecteur :
+		
+		$$T^{k + 1} \leftarrow A T^k + \Delta t q^k$$
+		
+		avec $A = I - \frac{\alpha \Delta t}{\Delta x^2} K$ et
+		
+		$$K = \begin{pmatrix}
+2 & -1 & &  \\ 
+-1 & 2 & \ddots  &\\ 
+  & \ddots & \ddots &
+\end{pmatrix} $$
+		
+		\subsubsection{Schéma implicite}
+		
+		Au lieu de définir $T^{k + 1}$ en fonction de $T^k$, on va définir $T^k$ à partir de $T^{k - 1}$. On a alors
+		
+		$$\frac{\vartheta}{\vartheta t} T(x, t) \vert_{t = t_k} \Rightarrow \frac{T_j^k - T_j^{k - 1}}{\Delta t} \text{    ou    } \frac{\vartheta}{\vartheta t} T(x, t) \vert_{t = t_{k + 1}} \Rightarrow \frac{T_j^{k + 1} - T_j^k}{\Delta t}$$
+		
+		L'équation de la chaleur devient alors
+		
+		$$\frac{T_j^{k + 1} - T_j^k}{\Delta t} - \alpha \frac{T_{j - 1}^{k + 1} - 2 T^{k + 1}_j + T_{j + 1}^{k + 1}}{\Delta x^2} = q_j^{k + 1}$$
+		
+		Ou encore
+		
+		$$T^{k + 1}_j - \frac{\alpha \Delta t}{\Delta x^2} (T_{j - 1}^{k + 1} - 2 T^{k + 1}_j + T_{j + 1}^{k + 1}) = T_j^k + \Delta t q_j^k$$
+		
+		Chaque point dépend d'autres points de la même étape temporelle ; on a le stencil suivant.
+		
+		\dessin{chapter4/2}
+		
+		Avec des vecteurs, on a la forme
+		
+		$$(I + \frac{\alpha \Delta t}{\Delta x^2} K) T^{k + 1} = T^k + \Delta t q^k$$
+		
+		Contrairement à la méthode explicite, où un produit matrice-vecteur suffit, dériver $T^{k + 1}$ de $T^k$ implique de résoudre le système linéaire
+		
+		$$T^{k + 1} \leftarrow A^{-1}(T^k + \Delta t q^k)$$
+		
+		avec $A = I + \frac{\alpha \Delta t}{\Delta x^2} K$, ce qui est une opération beaucoup plus compliquée.
+		
+		
+		
+		\subsubsection{Analyse de la stabilité}
+		
+		[pages 137-138, ce qui suit n'est que la conclusion]
+		
+		
+		\paragraph{Stabilité du schéma explicite}
+		
+		
+		On a une restriction sur la taille des pas temporels : ils doivent être suffisamment petits pour que la méthode soit stable.
+		
+		De plus, si on décide d'avoir plus de précision en espace et qu'on divise $\Delta x$ en deux, il faudra multiplier le nombre de pas temporels par 4.
+		
+		\paragraph{Stabilité du schéma implicite}
+		
+		Le dénominateur du $\beta$ est toujours $> 1$, donc la condition $\vert \beta \vert < 1$ est toujours satisfaite, quelque soit le choix de $\Delta x$ et $\Delta t$. La méthode sera donc toujours stable.
