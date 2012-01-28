@@ -1,7 +1,7 @@
 HPSC - Synthèse
 
 par Jean-Philippe Collette (jeanphilippe.collette [at] gmail [dot] com)
------------------------------
+-------------------------------------------------------------------------------
 
 Ce dépôt est consacré à une synthèse pour le cours de High Performance
 Scientific Computating, donné par messieurs Geuzaine et Collignon.
@@ -18,6 +18,12 @@ Elle s'appuie sur nos prises de notes, ainsi que sur deux livres de référence 
 	  Eijkhout, et
 	- "Parallel Scientific Computing in C++ and MPI", par George Em Karniadakis
 	  et Robert M. Kirby II.
+	  
+Les illustrations provient du premier livre de référence. Celles de la partie
+sur les méthodes itératives ont été recopiées de nos prises de notes avec
+OpenOffice Draw. Les sources pour les modifier se trouvent dans
+	
+	/images/chapter5/images.odg
 
 Le but de ce dépôt est de faciliter les petites corrections, les améliorations,
 etc au fil des années. De ce fait, merci de
